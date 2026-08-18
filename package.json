@@ -2,24 +2,15 @@
   "name": "portero",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
-  "dependencies": {
-    "next": "16.3.0",
-    "react": "19.2.8",
-    "react-dom": "19.2.8"
-  },
-  "devDependencies": {
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "babel-plugin-react-compiler": "1.0.0",
-    "eslint": "^9",
-    "eslint-config-next": "16.3.0",
-    "typescript": "^5"
+    "dev:web": "npm run dev --workspace=@portero/web",
+    "dev:api": "npm run dev --workspace=@portero/api",
+    "build:web": "npm run build --workspace=@portero/web",
+    "build:api": "npm run build --workspace=@portero/api",
+    "db:generate": "npm run db:generate --workspace=@portero/api",
+    "db:migrate": "npm run db:migrate --workspace=@portero/api"
   }
 }
