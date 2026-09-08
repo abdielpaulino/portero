@@ -29,8 +29,8 @@
 
 .card {
   background: var(--conteiner-bg);
+  border: 2px solid var(--border-color);
   border-radius: var(--border);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, .3);
   width: 100%;
   max-width: 380px;
   margin-bottom: 1rem;
