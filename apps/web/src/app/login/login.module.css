@@ -1,14 +1,15 @@
 .container {
   min-height: 100vh;
   display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: flex-start;
   padding: 1rem;
+  padding-top: var(--padding-top);
   background: var(--light-bg);
 }
 
 .card {
-  background: var(--light-bg);
+  background: var(--conteiner-bg);
   padding: 40px 32px;
   border-radius: var(--border);
   box-shadow: 0 4px 20px rgba(0, 0, 0, .3);
@@ -21,7 +22,7 @@
   flex-direction: column;
   gap: 1rem;
   width: 100%;
-  background-color: var(--light-bg);
+  background-color: var(--conteiner-bg);
 }
 
 .title {
@@ -53,30 +54,31 @@
 
 .field input {
   padding: 0.9rem 1.25rem;
-  border: 1.5px solid var(--blue);
+  border: 1.5px solid var(--purple);
   border-radius: var(--border);
   font-size: 1rem;
   font-weight: 600;
-  color: var(--blue);
-  background-color: var(--light-bg);
+  color: var(--purple);
+  background-color: var(--conteiner-bg);
 }
 
 .field input::placeholder {
-  color: var(--blue);
+  color: var(--light-font);
   font-weight: 600;
   opacity: 1;
 }
 
 .field input:focus {
   outline: none;
-  border-color: var(--blue);
+  border-color: var(--purple);
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.15);
 }
 
 .button {
   padding: 0.9rem;
   border: none;
   border-radius: var(--border);
-  background: #111;
+  background: var(--purple);
   color: white;
   font-size: 1rem;
   font-weight: 600;

@@ -2,7 +2,10 @@
     --dark-font: #0F172A;
     --light-font: #64748B;
     --blue: #0050C3;
-    --light-bg: #F8FAFC;
+    --light-bg: #E2E8F0;
+    --conteiner-bg: #FFFFFF;
+    --purple: #4F46E5;
+    --padding-top: 10vh;
 
     --border: 10px;
 }
