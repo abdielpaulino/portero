@@ -1,18 +1,27 @@
 .container {
   min-height: 100vh;
   display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  flex-direction:column;
+  justify-content: stretch;
+  align-items: center;
   padding: 1rem;
   padding-top: var(--padding-top);
   background: var(--light-bg);
 }
 
+.header{
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+}
+
 .card {
   background: var(--conteiner-bg);
-  padding: 40px 32px;
+  padding: 2rem 1rem;
+  border: 2px solid var(--border-color);
   border-radius: var(--border);
-  box-shadow: 0 4px 20px rgba(0, 0, 0, .3);
   width: 100%;
   max-width: 380px;
 }
@@ -54,7 +63,7 @@
 
 .field input {
   padding: 0.9rem 1.25rem;
-  border: 1.5px solid var(--purple);
+  border: 2px solid var(--light-font);
   border-radius: var(--border);
   font-size: 1rem;
   font-weight: 600;

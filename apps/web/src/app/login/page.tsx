@@ -14,9 +14,10 @@ export default function LoginPage() {
 
   return (
     <div className={styles.container}>
-      <div>
-        <h1 className={styles.title}>Login</h1>
-        <p className={styles.subtitle}>Acesse sua conta</p>
+        <div className={styles.header}>
+          <h1 className={styles.title}>Login</h1>
+          <p className={styles.subtitle}>Acesse sua conta</p>
+        </div>
         <div className={styles.card}>
             <form onSubmit={handleSubmit} className={styles.form}>
                 <div className={styles.field}>
@@ -46,7 +47,6 @@ export default function LoginPage() {
                 </button>
             </form>
         </div>
-      </div>
     </div>
   );
 }
