@@ -186,10 +186,12 @@
 }
 
 .tabbar {
+  max-width: var(--max-width);
+  width: 100%;
   position: fixed;
   bottom: 0;
-  left: 0;
-  right: 0;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   justify-content: space-around;
   background: white;
@@ -207,6 +209,8 @@
   background: none;
   border: none;
   cursor: pointer;
+  flex: 1;              
+  min-width: 0;          
 }
 
 .tabItem[data-active="true"] {
