@@ -1,0 +1,237 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+  padding-top: var(--padding-top);
+  padding-bottom: 5rem;
+  background: var(--light-bg);
+}
+
+.header {
+  width: 100%;
+  max-width: var(--max-width);
+  margin-bottom: 1.25rem;
+}
+
+.title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--dark-font);
+  margin: 0;
+}
+
+.subtitle {
+  font-size: 0.9rem;
+  color: var(--light-font);
+  margin: 0.25rem 0 0 0;
+}
+
+.searchWrapper {
+  position: relative;
+  width: 100%;
+  max-width: var(--max-width);
+  margin-bottom: 0.75rem;
+}
+
+.searchIcon {
+  position: absolute;
+  top: 50%;
+  left: 0.9rem;
+  transform: translateY(-50%);
+  color: var(--light-font);
+}
+
+.searchInput {
+  width: 100%;
+  padding: 0.75rem 0.9rem 0.75rem 2.5rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--border);
+  font-size: 0.9rem;
+  color: var(--dark-font);
+  background: var(--conteiner-bg);
+  box-sizing: border-box;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--purple);
+}
+
+.filters {
+  display: flex;
+  gap: 0.5rem;
+  width: 100%;
+  max-width: var(--max-width);
+  margin-bottom: 1rem;
+}
+
+.filterPill {
+  padding: 0.4rem 0.9rem;
+  border-radius: var(--border);
+  border: 1.5px solid var(--purple);
+  background: var(--conteiner-bg);
+  color: var(--purple);
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.filterPill[data-active="true"] {
+  background: var(--purple);
+  color: white;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+  max-width: var(--max-width);
+}
+
+.card {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 0.85rem;
+  background: var(--conteiner-bg);
+  border: 2px solid var(--border-color);
+  border-radius: var(--border);
+}
+
+.skeleton {
+  height: 68px;
+  background: linear-gradient(90deg, var(--border-color) 25%, var(--light-bg) 50%, var(--border-color) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.empty {
+  text-align: center;
+  color: var(--light-font);
+  font-size: 0.9rem;
+  padding: 2rem 0;
+}
+
+.thumb {
+  width: 48px;
+  height: 48px;
+  min-width: 48px;
+  border-radius: 10px;
+  background: var(--light-bg);
+  color: var(--light-font);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.thumbImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.info {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.itemName {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--dark-font);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.itemMeta {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.2rem;
+  flex-wrap: wrap;
+}
+
+.sku {
+  font-size: 0.75rem;
+  color: var(--light-font);
+}
+
+.qtyBadge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.1rem 0.4rem;
+  border-radius: 6px;
+  color: #16a34a;
+  background: #dcfce7;
+}
+
+.qtyBadge[data-ruptura="true"] {
+  color: #e11d48;
+  background: #ffe4e6;
+}
+
+.status {
+  font-size: 0.75rem;
+  color: var(--light-font);
+}
+
+.status[data-ruptura="true"] {
+  color: #e11d48;
+  font-weight: 600;
+}
+
+.price {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--dark-font);
+  white-space: nowrap;
+}
+
+.tabbar {
+  max-width: var(--max-width);
+  width: 100%;
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: space-around;
+  background: white;
+  border-top: 1px solid #eee;
+  padding: 0.6rem 0 0.9rem;
+}
+
+.tabItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.7rem;
+  color: var(--light-font);
+  background: none;
+  border: none;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+}
+
+.tabItem[data-active="true"] {
+  color: var(--purple);
+  font-weight: 700;
+}
