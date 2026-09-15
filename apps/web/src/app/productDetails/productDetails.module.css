@@ -1,0 +1,215 @@
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem;
+  padding-top: var(--padding-top);
+  padding-bottom: 5rem;
+  background: var(--light-bg);
+}
+
+.topbar {
+  width: 100%;
+  max-width: var(--max-width);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.backBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  background: none;
+  border: none;
+  color: var(--dark-font);
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0;
+  cursor: pointer;
+}
+
+.stockLink {
+  background: none;
+  border: none;
+  color: var(--purple);
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0;
+  cursor: pointer;
+}
+
+.heroWrapper {
+  width: 100%;
+  max-width: var(--max-width);
+  margin-bottom: 1rem;
+}
+
+.hero {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  border-radius: var(--border);
+  background: var(--light-bg);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.heroImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.heroSkeleton {
+  background: linear-gradient(90deg, var(--border-color) 25%, var(--light-bg) 50%, var(--border-color) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.infoWrapper {
+  width: 100%;
+  max-width: var(--max-width);
+  margin-bottom: 1.25rem;
+}
+
+.itemName {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: var(--dark-font);
+  margin: 0;
+}
+
+.sku {
+  font-size: 0.82rem;
+  color: var(--light-font);
+  margin: 0.2rem 0 0.6rem 0;
+}
+
+.price {
+  font-size: 1.3rem;
+  font-weight: 800;
+  color: var(--purple);
+  margin: 0;
+}
+
+.section {
+  width: 100%;
+  max-width: var(--max-width);
+  background: var(--conteiner-bg);
+  border: 2px solid var(--border-color);
+  border-radius: var(--border);
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.sectionTitle {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--dark-font);
+  margin: 0 0 0.75rem 0;
+}
+
+.variations {
+  display: flex;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.variationPill {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-color);
+  background: var(--conteiner-bg);
+  color: var(--dark-font);
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.variationPill[data-active="true"] {
+  border-color: var(--purple);
+  color: var(--purple);
+}
+
+.stockAdjust {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.stepBtn {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--purple);
+  background: var(--conteiner-bg);
+  color: var(--purple);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.stepBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.stepValue {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--dark-font);
+  min-width: 2.5rem;
+  text-align: center;
+}
+
+.tabbar {
+  max-width: var(--max-width);
+  width: 100%;
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  justify-content: space-around;
+  background: white;
+  border-top: 1px solid #eee;
+  padding: 0.6rem 0 0.9rem;
+}
+
+.tabItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.2rem;
+  font-size: 0.7rem;
+  color: var(--light-font);
+  background: none;
+  border: none;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+}
+
+.tabItem[data-active="true"] {
+  color: var(--purple);
+  font-weight: 700;
+}
