@@ -1,15 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import styles from "./login.module.css";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
     console.log("login attempt:", { email, password });
+    router.push("/dashboard");
   }
 
   return (
