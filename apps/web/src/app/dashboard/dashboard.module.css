@@ -148,6 +148,7 @@
   padding: 0.15rem 0.5rem;
 }
 
+/* Gráfico de movimentações */
 .chart {
   display: flex;
   align-items: flex-end;
@@ -250,6 +251,39 @@
 
 .skeleton {
   min-height: 72px;
+  background: linear-gradient(
+    90deg,
+    var(--light-bg) 25%,
+    #eef0f3 37%,
+    var(--light-bg) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+}
+
+.skeletonText {
+  display: inline-block;
+  height: 0.95em;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    var(--light-bg) 25%,
+    #eef0f3 37%,
+    var(--light-bg) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+  vertical-align: middle;
+}
+
+.skeletonBadge {
+  width: 96px;
+  height: 16px;
+  border-radius: 999px;
+  margin-top: 0.35rem;
+}
+
+.chartBarSkeleton {
   background: linear-gradient(
     90deg,
     var(--light-bg) 25%,

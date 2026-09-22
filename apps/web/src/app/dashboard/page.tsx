@@ -20,6 +20,7 @@ interface Movimentacao {
 }
 
 interface DashboardData {
+  sincronizado: boolean;
   vendasDoMes: number;
   variacaoVendas: number;
   totalPedidos: number;
@@ -34,12 +35,43 @@ const STATUS_LABEL: Record<StatusPedido, string> = {
   paused: "PAUSED",
 };
 
+const DIAS_PLACEHOLDER = ["M", "T", "W", "T", "F", "S", "S"];
+
 function formatarMoeda(valor: number) {
   return valor.toLocaleString("pt-BR", {
     style: "currency",
     currency: "BRL",
   });
 }
+
+// ─────────────────────────────────────────────────────────
+// DADOS TEMPORÁRIOS PARA APRESENTAÇÃO
+// Descomente o bloco abaixo E a linha marcada dentro de
+// carregarDashboard() para usar esses dados no lugar da API
+// (que ainda não existe). Antes de subir pra produção, comente
+// tudo de novo ou remova.
+// ─────────────────────────────────────────────────────────
+ const MOCK_DASHBOARD_DATA: DashboardData = {
+   sincronizado: true, // Mude para 'false' para testar o skeleton em tudo
+   vendasDoMes: 4850,
+   variacaoVendas: 13,
+   totalPedidos: 42,
+   alertaRupturaPercentual: 10,
+   movimentacoes: [
+     { dia: "M", valor: 30 },
+     { dia: "T", valor: 45 },
+     { dia: "W", valor: 25 },
+     { dia: "T", valor: 60 },
+     { dia: "F", valor: 40 },
+     { dia: "S", valor: 90 },
+     { dia: "S", valor: 55 },
+   ],
+   pedidosRecentes: [
+     { id: "1", numero: "#2048", valor: 128.5, itens: 2, status: "completed" },
+     { id: "2", numero: "#2047", valor: 48.5, itens: 1, status: "pending" },
+     { id: "3", numero: "#2046", valor: 352.5, itens: 3, status: "paused" },
+   ],
+ };
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -49,6 +81,10 @@ export default function DashboardPage() {
   const carregouRef = useRef(false);
 
   const carregarDashboard = useCallback(async () => {
+    // Descomente a linha abaixo (e o bloco MOCK_DASHBOARD_DATA acima)
+    // para usar dados fake em vez de chamar a API na apresentação:
+     { setData(MOCK_DASHBOARD_DATA); return; }
+
     const res = await fetch("/api/dashboard");
 
     if (!res.ok) {
@@ -77,8 +113,29 @@ export default function DashboardPage() {
     })();
   }, [carregarDashboard]);
 
-  const maiorMovimentacao = data
-    ? Math.max(...data.movimentacoes.map((m) => m.valor), 1)
+  useEffect(() => {
+    if (!erro) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        await carregarDashboard();
+        setErro(false);
+      } catch (err) {
+        console.error("Erro ao tentar sincronizar novamente:", err);
+      }
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [erro, carregarDashboard]);
+
+  const pronto = !loading && !erro && data !== null && data.sincronizado;
+
+  const movimentacoes = pronto
+    ? data!.movimentacoes
+    : DIAS_PLACEHOLDER.map((dia) => ({ dia, valor: 1 }));
+
+  const maiorMovimentacao = pronto
+    ? Math.max(...data!.movimentacoes.map((m) => m.valor), 1)
     : 1;
 
   return (
@@ -88,78 +145,105 @@ export default function DashboardPage() {
           <h1 className={styles.title}>Fluxo do estoque</h1>
           <p className={styles.subtitle}>Atualizado do Nuvemshop</p>
         </div>
-        <span className={styles.syncBadge}>
-          <span className={styles.syncDot} />
-          Sincronizado
-        </span>
+
+        {pronto ? (
+          <span className={styles.syncBadge}>
+            <span className={styles.syncDot} />
+            Sincronizado
+          </span>
+        ) : (
+          <span
+            className={`${styles.skeletonText} ${styles.skeletonBadge}`}
+            aria-hidden="true"
+          />
+        )}
       </div>
 
-      {loading &&
-        Array.from({ length: 5 }).map((_, i) => (
-          <div key={i} className={`${styles.card} ${styles.skeleton}`} />
-        ))}
-
-      {!loading && erro && (
-        <p className={styles.empty}>Não foi possível carregar os dados.</p>
-      )}
-
-      {!loading && !erro && data && (
-        <>
-          <div className={styles.statsGrid}>
-            <div className={styles.statCard}>
-              <span className={styles.statLabel}>Vendas do mês</span>
-              <div className={styles.statValueRow}>
+      <div className={styles.statsGrid}>
+        <div className={styles.statCard}>
+          <span className={styles.statLabel}>Vendas do mês</span>
+          <div className={styles.statValueRow}>
+            {pronto ? (
+              <>
                 <span className={styles.statValue}>
-                  {formatarMoeda(data.vendasDoMes)}
+                  {formatarMoeda(data!.vendasDoMes)}
                 </span>
                 <span
                   className={styles.statChange}
-                  data-positive={data.variacaoVendas >= 0}
+                  data-positive={data!.variacaoVendas >= 0}
                 >
-                  {data.variacaoVendas >= 0 ? "+" : ""}
-                  {data.variacaoVendas}%
+                  {data!.variacaoVendas >= 0 ? "+" : ""}
+                  {data!.variacaoVendas}%
                 </span>
-              </div>
-            </div>
-
-            <div className={styles.statCard}>
-              <span className={styles.statLabel}>Pedidos</span>
-              <span className={styles.statValue}>{data.totalPedidos} Pedidos</span>
-            </div>
+              </>
+            ) : (
+              <span
+                className={`${styles.statValue} ${styles.skeletonText}`}
+                style={{ width: "100px" }}
+                aria-hidden="true"
+              />
+            )}
           </div>
+        </div>
 
-          <div className={styles.card}>
-            <span className={styles.cardLabel}>Alertas de ruptura</span>
-            <div className={styles.alertRow}>
+        <div className={styles.statCard}>
+          <span className={styles.statLabel}>Pedidos</span>
+          {pronto ? (
+            <span className={styles.statValue}>{data!.totalPedidos} Pedidos</span>
+          ) : (
+            <span
+              className={`${styles.statValue} ${styles.skeletonText}`}
+              style={{ width: "80px" }}
+              aria-hidden="true"
+            />
+          )}
+        </div>
+      </div>
+
+      <div className={styles.card}>
+        <span className={styles.cardLabel}>Alertas de ruptura</span>
+        <div className={styles.alertRow}>
+          {pronto ? (
+            <>
               <span className={styles.alertValue}>
-                {data.alertaRupturaPercentual}%
+                {data!.alertaRupturaPercentual}%
               </span>
               <span className={styles.alertBadge}>CRÍTICO</span>
-            </div>
-          </div>
+            </>
+          ) : (
+            <span
+              className={`${styles.alertValue} ${styles.skeletonText}`}
+              style={{ width: "60px" }}
+              aria-hidden="true"
+            />
+          )}
+        </div>
+      </div>
 
-          <div className={styles.card}>
-            <div className={styles.cardHeaderRow}>
-              <span className={styles.cardLabel}>Movimentações</span>
-              <span className={styles.cardHint}>Últimos 7 dias</span>
+      <div className={styles.card}>
+        <div className={styles.cardHeaderRow}>
+          <span className={styles.cardLabel}>Movimentações</span>
+          <span className={styles.cardHint}>Últimos 7 dias</span>
+        </div>
+        <div className={styles.chart}>
+          {movimentacoes.map((m, i) => (
+            <div key={i} className={styles.chartBarWrapper}>
+              <div
+                className={`${styles.chartBar} ${!pronto ? styles.chartBarSkeleton : ""}`}
+                style={{ height: pronto ? `${(m.valor / maiorMovimentacao) * 100}%` : "35%" }}
+                aria-hidden={!pronto}
+              />
+              <span className={styles.chartLabel}>{m.dia}</span>
             </div>
-            <div className={styles.chart}>
-              {data.movimentacoes.map((m, i) => (
-                <div key={i} className={styles.chartBarWrapper}>
-                  <div
-                    className={styles.chartBar}
-                    style={{ height: `${(m.valor / maiorMovimentacao) * 100}%` }}
-                  />
-                  <span className={styles.chartLabel}>{m.dia}</span>
-                </div>
-              ))}
-            </div>
-          </div>
+          ))}
+        </div>
+      </div>
 
-          <div className={styles.card}>
-            <span className={styles.cardLabel}>Pedidos recentes</span>
-            <div className={styles.orderList}>
-              {data.pedidosRecentes.map((pedido) => (
+      <div className={styles.card}>
+        <span className={styles.cardLabel}>Pedidos recentes</span>
+        <div className={styles.orderList}>
+          {pronto
+            ? data!.pedidosRecentes.map((pedido) => (
                 <div key={pedido.id} className={styles.orderRow}>
                   <div className={styles.orderInfo}>
                     <span className={styles.orderNumber}>
@@ -174,11 +258,30 @@ export default function DashboardPage() {
                     {STATUS_LABEL[pedido.status]}
                   </span>
                 </div>
+              ))
+            : [1, 2, 3].map((i) => (
+                <div key={i} className={styles.orderRow}>
+                  <div className={styles.orderInfo}>
+                    <span
+                      className={`${styles.orderNumber} ${styles.skeletonText}`}
+                      style={{ width: "110px" }}
+                      aria-hidden="true"
+                    />
+                    <span
+                      className={`${styles.orderMeta} ${styles.skeletonText}`}
+                      style={{ width: "150px" }}
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <span
+                    className={`${styles.statusBadge} ${styles.skeletonText}`}
+                    style={{ width: "72px" }}
+                    aria-hidden="true"
+                  />
+                </div>
               ))}
-            </div>
-          </div>
-        </>
-      )}
+        </div>
+      </div>
 
       <TabBar />
     </div>
