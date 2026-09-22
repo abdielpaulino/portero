@@ -82,7 +82,7 @@ export default function ProductDetailPage() {
   return (
     <div className={styles.container}>
       <div className={styles.topbar}>
-        <button type="button" className={styles.backBtn} onClick={() => router.back()}>
+        <button type="button" className={styles.backBtn} onClick={() => router.push("/inventory")}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6" />
           </svg>
