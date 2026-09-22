@@ -51,7 +51,8 @@ function formatarMoeda(valor: number) {
 // (que ainda não existe). Antes de subir pra produção, comente
 // tudo de novo ou remova.
 // ─────────────────────────────────────────────────────────
- const MOCK_DASHBOARD_DATA: DashboardData = {
+
+ /*const MOCK_DASHBOARD_DATA: DashboardData = {
    sincronizado: true, // Mude para 'false' para testar o skeleton em tudo
    vendasDoMes: 4850,
    variacaoVendas: 13,
@@ -72,6 +73,7 @@ function formatarMoeda(valor: number) {
      { id: "3", numero: "#2046", valor: 352.5, itens: 3, status: "paused" },
    ],
  };
+*/
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -83,7 +85,7 @@ export default function DashboardPage() {
   const carregarDashboard = useCallback(async () => {
     // Descomente a linha abaixo (e o bloco MOCK_DASHBOARD_DATA acima)
     // para usar dados fake em vez de chamar a API na apresentação:
-     { setData(MOCK_DASHBOARD_DATA); return; }
+    // { setData(MOCK_DASHBOARD_DATA); return; }
 
     const res = await fetch("/api/dashboard");
 
