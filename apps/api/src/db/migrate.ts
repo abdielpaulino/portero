@@ -1,9 +1,17 @@
 import "dotenv/config";
-import { neon } from "@neondatabase/serverless";
-import { drizzle } from "drizzle-orm/neon-http";
-import { migrate } from "drizzle-orm/neon-http/migrator";
+import { Pool } from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
 
-const sql = neon(process.env.DATABASE_URL!);
-const db = drizzle(sql);
+const databaseUrl = process.env.DATABASE_URL;
+if (!databaseUrl) {
+  throw new Error("DATABASE_URL is required");
+}
 
-await migrate(db, { migrationsFolder: "./src/db/migrations" });
+const pool = new Pool({ connectionString: databaseUrl, max: 1 });
+
+try {
+  await migrate(drizzle(pool), { migrationsFolder: "./src/db/migrations" });
+} finally {
+  await pool.end();
+}

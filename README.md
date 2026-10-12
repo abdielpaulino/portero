@@ -24,7 +24,7 @@ Professor orientador: Hyan Dias Tavares
 | -------- | ----------------------------------------- |
 | Frontend | `apps/web` — Next.js 16, React 19          |
 | Backend  | `apps/api` — Express, Drizzle ORM          |
-| Banco    | PostgreSQL (Neon)                          |
+| Banco    | PostgreSQL (Supabase)                      |
 | Integração | Nuvemshop (API de e-commerce)             |
 
 ## Estrutura
@@ -43,7 +43,11 @@ cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env
 ```
 
-Preencher `DATABASE_URL` em `apps/api/.env` com a connection string do Neon.
+Preencher `DATABASE_URL` em `apps/api/.env` com a connection string PostgreSQL
+obtida em **Connect** no Supabase. Para a API Express, usar o **Session pooler**
+(porta 5432) com SSL (`sslmode=require`). Se o ambiente tiver IPv6, a conexão
+direta também é adequada. Manter a senha do banco apenas no `.env` local;
+o front-end não deve receber essa URL.
 
 ## Rodando
 
@@ -53,6 +57,11 @@ npm run dev:web
 ```
 
 ## Migrations
+
+`db:generate` cria arquivos SQL no repositório, sem modificar o banco.
+`db:migrate` aplica esses arquivos ao banco apontado por `DATABASE_URL`;
+confira o destino e revise o SQL antes de executá-lo. A pasta de migrações
+ainda não contém uma migração inicial.
 
 ```
 npm run db:generate
