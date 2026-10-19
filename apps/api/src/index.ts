@@ -1,14 +1,12 @@
 import "dotenv/config";
-import cors from "cors";
-import express from "express";
+import { createApp } from "./app.js";
+import { authRepository } from "./auth/repository.js";
 
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok" });
+const app = createApp({
+  repository: authRepository,
+  jwtSecret: process.env.JWT_SECRET ?? "",
+  secureCookies: process.env.NODE_ENV === "production",
+  webOrigin: process.env.WEB_ORIGIN,
 });
 
 const port = process.env.PORT ?? 3001;

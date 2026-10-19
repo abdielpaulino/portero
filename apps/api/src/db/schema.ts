@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, date, foreignKey, integer, pgTable, text, timestamp, unique } from "drizzle-orm/pg-core";
+import { check, date, foreignKey, integer, pgTable, primaryKey, text, timestamp, unique, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const lojas = pgTable("lojas", {
   id: integer("id").generatedByDefaultAsIdentity().primaryKey(),
@@ -28,6 +28,7 @@ export const acessosPermitidos = pgTable("acessos_permitidos", {
 
 export const usuariosApp = pgTable("usuarios_app", {
   id: integer("id").generatedByDefaultAsIdentity().primaryKey(),
+  // Coluna legada preservada até a revisão da migração; o login usa usuarios_lojas.
   lojaId: integer("loja_id").notNull(),
   nome: text("nome").notNull(),
   email: text("email").notNull(),
@@ -40,6 +41,24 @@ export const usuariosApp = pgTable("usuarios_app", {
     foreignColumns: [lojas.id],
   }),
   unique("usuarios_app_email_por_loja").on(table.lojaId, table.email),
+  uniqueIndex("usuarios_app_email_global").on(sql`lower(btrim(${table.email}))`),
+]);
+
+export const usuariosLojas = pgTable("usuarios_lojas", {
+  usuarioId: integer("usuario_id").notNull(),
+  lojaId: integer("loja_id").notNull(),
+}, (table) => [
+  primaryKey({ columns: [table.usuarioId, table.lojaId] }),
+  foreignKey({
+    name: "usuarios_lojas_usuario_id_fkey",
+    columns: [table.usuarioId],
+    foreignColumns: [usuariosApp.id],
+  }),
+  foreignKey({
+    name: "usuarios_lojas_loja_id_fkey",
+    columns: [table.lojaId],
+    foreignColumns: [lojas.id],
+  }),
 ]);
 
 export const baixasEstoque = pgTable("baixas_estoque", {
