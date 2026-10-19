@@ -61,7 +61,8 @@
   clip: rect(0 0 0 0);
 }
 
-.field input {
+.field input,
+.field select {
   padding: 0.9rem 1.25rem;
   border: 2px solid var(--light-font);
   border-radius: var(--border);
@@ -77,7 +78,8 @@
   opacity: 1;
 }
 
-.field input:focus {
+.field input:focus,
+.field select:focus {
   outline: none;
   border-color: var(--purple);
   box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.15);
@@ -95,6 +97,29 @@
   margin-top: 0.5rem;
 }
 
-.button:hover {
+.button:hover:not(:disabled) {
   background: #333;
+}
+
+.button:disabled,
+.backButton:disabled,
+.field input:disabled,
+.field select:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.backButton {
+  border: none;
+  background: transparent;
+  color: var(--purple);
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.error {
+  margin: 0;
+  color: #b42318;
+  font-size: 0.9rem;
 }
