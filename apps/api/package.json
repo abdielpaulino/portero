@@ -8,6 +8,7 @@
     "build": "tsc -p tsconfig.json",
     "test": "tsx --test tests/*.test.ts",
     "start": "node dist/index.js",
+    "user:create-initial": "tsx src/scripts/create-initial-user.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts"
   },

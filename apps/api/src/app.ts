@@ -13,6 +13,13 @@ type AppOptions = {
 export function createApp({ repository, jwtSecret, secureCookies = false, webOrigin = "http://localhost:3000" }: AppOptions) {
   const app = express();
   app.use(cors({ origin: webOrigin, credentials: true }));
+  app.use((req, res, next) => {
+    if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && req.get("Origin") && req.get("Origin") !== webOrigin) {
+      res.status(403).json({ message: "Origem da solicitação não permitida." });
+      return;
+    }
+    next();
+  });
   app.use(express.json({ limit: "8kb" }));
 
   app.get("/health", (_req, res) => {

@@ -1,19 +1,48 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import TabBar from "../components/TabBar";
 import styles from "./settings.module.css";
+import { carregarSessao, encerrarSessao, type Session } from "../auth/session";
 
 export default function SettingsPage() {
   const router = useRouter();
   const [notifications, setNotifications] = useState(true);
   const [autoSync, setAutoSync] = useState(true);
   const [rupturaQty, setRupturaQty] = useState("0");
+  const [session, setSession] = useState<Session | null>(null);
+  const [error, setError] = useState("");
+  const [leaving, setLeaving] = useState(false);
+  const submitting = useRef(false);
 
-  function handleLogout() {
-    console.log("logout");
-    router.push("/login");
+  useEffect(() => {
+    const controller = new AbortController();
+    void carregarSessao(undefined, { signal: controller.signal }).then((value) => {
+      if (controller.signal.aborted) return;
+      if (!value) { router.replace("/login"); router.refresh(); return; }
+      setSession(value);
+    }).catch(() => {
+      if (!controller.signal.aborted) setError("Não foi possível carregar a conta.");
+    });
+    return () => controller.abort();
+  }, [router]);
+
+  async function handleLogout() {
+    if (submitting.current) return;
+    submitting.current = true;
+    setLeaving(true);
+    setError("");
+    try {
+      await encerrarSessao();
+      router.replace("/login");
+      router.refresh();
+    } catch {
+      setError("Não foi possível sair. Tente novamente.");
+    } finally {
+      submitting.current = false;
+      setLeaving(false);
+    }
   }
 
   return (
@@ -26,12 +55,13 @@ export default function SettingsPage() {
       <div className={`${styles.card} ${styles.account}`}>
         <div className={styles.avatar}>NS</div>
         <div>
-          <p className={styles.accountName}>Conta Nuvemshop</p>
-          <p className={styles.accountSubtitle}>Loja: Portero</p>
+          <p className={styles.accountName}>Conta PORTERO{session ? ` #${session.usuarioId}` : ""}</p>
+          <p className={styles.accountSubtitle}>Loja: {session?.loja.nomeLoja ?? "Carregando..."}</p>
         </div>
       </div>
 
       <div className={`${styles.card} ${styles.list}`}>
+        <p className={styles.itemSubtitle}>Prévia: estas preferências ainda não são salvas.</p>
         <div className={styles.item}>
           <span className={styles.itemIcon}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -101,13 +131,14 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      <button className={styles.logout} onClick={handleLogout}>
+      {error && <p role="alert">{error}</p>}
+      <button type="button" className={styles.logout} onClick={handleLogout} disabled={leaving}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
           <polyline points="16 17 21 12 16 7" />
           <line x1="21" y1="12" x2="9" y2="12" />
         </svg>
-        Sair
+        {leaving ? "Saindo..." : "Sair"}
       </button>
 
       <TabBar />
