@@ -10,6 +10,10 @@ const nextConfig: NextConfig = {
         destination: `${process.env.API_URL ?? "http://localhost:3001"}/inventory/stock-decreases`,
       },
       {
+        source: "/api/inventory/stock-decreases/:id/:action*",
+        destination: `${process.env.API_URL ?? "http://localhost:3001"}/inventory/stock-decreases/:id/:action*`,
+      },
+      {
         source: "/api/inventory",
         destination: `${process.env.API_URL ?? "http://localhost:3001"}/inventory`,
       },

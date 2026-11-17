@@ -24,7 +24,9 @@ Professor orientador: Hyan Dias Tavares
 - Criação administrativa de usuários, sem cadastro público.
 - Conexão OAuth com a Nuvemshop pelo backend.
 - Consulta de produtos, variantes, SKU, preços, imagens e quantidades.
-- Consulta do histórico de baixas.
+- Baixa por venda externa usando o ID original de `baixas_estoque`, em duas etapas:
+  registro local e execução, sem alteração estrutural do banco.
+- Histórico de baixas com recuperação de operações registradas.
 
 ## Stack
 
@@ -70,6 +72,9 @@ não devem ser versionados. No PowerShell, usar `Copy-Item` para as cópias e
 `npm.cmd` se a política de execução bloquear `npm.ps1`.
 
 O fluxo utiliza o banco existente, sem novas colunas, índices ou tabelas.
+`apps/api/sql/stock-decreases-preflight.sql` permite conferir a estrutura somente
+por leitura. Os SQLs de alteração não são necessários para este fluxo; não aplicar
+`initial-schema.sql` nem `stock-decreases-idempotency.sql` ao banco existente.
 A pasta de migrações ainda não contém uma migração inicial. `db:migrate` altera
 o banco de `DATABASE_URL` e não deve ser usado para preparar o banco existente.
 
@@ -100,10 +105,21 @@ precisam ser recriados.
 
 ## Limitações
 
-- OAuth é restrito a `development` e à demo configurada.
-- O histórico completo ainda aguarda teste real na demo.
-- Busca e filtros abrangem somente os produtos carregados. Dashboard e detalhes
-  ainda não têm integração; preferências de configurações não são salvas.
+- OAuth e baixas são restritos a `development` e à demo configurada. A baixa e o
+  histórico completo ainda aguardam teste real na demo.
+- A interface guarda o ID antes de executar a baixa. Se a resposta da criação se
+  perder, recuperar o registro pelo histórico, sem criar outra operação ou limpar
+  a pendência do navegador. Operações incertas e registros legados `pendente`
+  exigem conferência. Apenas novas operações `registrada` permitem execução ou
+  cancelamento. Não restaurar esse estado em operações incertas para reenviar a
+  venda. Operações sem conclusão bloqueiam outra criação da variante.
+- O lock coordena apenas o PORTERO. Vendas simultâneas na Nuvemshop podem alterar
+  o saldo; resposta divergente, saldo zero ou falha após o envio remoto exigem
+  conferência, sem reenvio automático. O saldo atual sozinho não comprova o
+  resultado. Testar a demo sem vendas ou ajustes paralelos.
+- A baixa exige `localStorage` e Web Locks em navegador compatível, em `localhost`
+  ou HTTPS. Busca e filtros abrangem somente os produtos carregados. Dashboard e
+  detalhes ainda não têm integração; preferências de configurações não são salvas.
 - Cotação de frete não faz parte do escopo. Cadastro e exclusão de produtos
   permanecem na Nuvemshop.
 - O uso na loja do cliente depende de instalação administrativa, HTTPS, revisão

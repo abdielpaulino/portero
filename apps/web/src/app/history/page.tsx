@@ -6,6 +6,7 @@ import TabBar from "../components/TabBar";
 import styles from "../inventory/inventory.module.css";
 import historyStyles from "./history.module.css";
 import { carregarHistorico, statusLabel, type StockHistoryItem } from "./data";
+import RecoverDecrease from "./RecoverDecrease";
 
 export default function HistoryPage() {
   const [items, setItems] = useState<StockHistoryItem[]>([]);
@@ -57,6 +58,7 @@ export default function HistoryPage() {
         <p>Produto {item.produtoId} · Quantidade: {item.quantidade}</p>
         <p>Usuário: {item.usuario?.nome || item.usuario?.email || "Não disponível"}</p>
         <small>Registro: {item.criadoEm ? new Date(item.criadoEm).toLocaleString("pt-BR") : "Data não disponível"}</small>
+        {item.status === "registrada" && <RecoverDecrease item={item} onChange={() => void carregar(1)} />}
         {!["sincronizada", "rejeitada", "registrada"].includes(item.status) &&
           <p className={historyStyles.warning}>Solicite conferência da baixa. Não registre esta venda novamente.</p>}
       </article>)}

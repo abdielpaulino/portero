@@ -55,10 +55,12 @@ it("distingue ruptura, quantidade disponível e estoque sem controle nos filtros
   assert.match(precoLabel(item), /129,90/);
 });
 
-it("encaminha a listagem do inventário para a API", async () => {
+it("encaminha a listagem e a rota explícita de baixas sem expor um proxy genérico", async () => {
   const rewrites = await nextConfig.rewrites!();
   assert.ok(Array.isArray(rewrites));
   const inventory = rewrites.find((entry) => entry.source === "/api/inventory");
   assert.ok(inventory);
   assert.ok(inventory.destination.endsWith("/inventory"));
+  assert.deepEqual(rewrites.filter((entry) => entry.source.startsWith("/api/inventory/")).map((entry) => entry.source),
+    ["/api/inventory/stock-decreases", "/api/inventory/stock-decreases/:id/:action*"]);
 });

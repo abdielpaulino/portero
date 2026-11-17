@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import TabBar from "../components/TabBar";
 import styles from "./inventory.module.css";
 import { carregarInventario, filtrarItens, quantidadeLabel, precoLabel, type Item, type Filtro } from "./data";
+import StockDecrease from "./StockDecrease";
 
 export default function InventoryPage() {
   const [items, setItems] = useState<Item[]>([]);
@@ -15,6 +16,34 @@ export default function InventoryPage() {
   const [erro, setErro] = useState("");
   const [nextPage, setNextPage] = useState<number | null>(null);
   const [failedPage, setFailedPage] = useState(1);
+  const [baixasEmAndamento, setBaixasEmAndamento] = useState(0);
+  const [aviso, setAviso] = useState("");
+  const loadedPages = useRef(1);
+  const refreshGeneration = useRef(0);
+
+  const acompanharBaixa = useCallback((busy: boolean) => {
+    setBaixasEmAndamento((current) => current + (busy ? 1 : -1));
+    if (busy) setAviso("");
+  }, []);
+
+  const atualizarSaldo = useCallback((selected: Item) => {
+    const generation = ++refreshGeneration.current;
+    setAviso(`Baixa confirmada para ${selected.nome}, variante ${selected.variante}. Atualizando estoque...`);
+    setLoading(true);
+    void Promise.all(Array.from({ length: loadedPages.current }, (_, page) => carregarInventario(page + 1))).then((pages) => {
+      if (generation !== refreshGeneration.current) return;
+      setItems(pages.flatMap((page) => page.items));
+      setNextPage(pages.at(-1)?.nextPage ?? null);
+      setErro("");
+      setAviso(`Baixa confirmada para ${selected.nome}, variante ${selected.variante}. Estoque atualizado.`);
+    }).catch((error: unknown) => {
+      if (generation !== refreshGeneration.current) return;
+      setErro(error instanceof Error ? error.message : "A baixa foi confirmada, mas não foi possível atualizar o inventário.");
+      setAviso("Baixa confirmada. O estoque exibido precisa ser atualizado.");
+      setFailedPage(1);
+    }).finally(() => { if (generation === refreshGeneration.current) setLoading(false); });
+  }, []);
+
   const carregarItens = useCallback(async (page: number) => {
     setLoading(true);
     setErro("");
@@ -23,6 +52,7 @@ export default function InventoryPage() {
       setItems((current) => page === 1 ? data.items
         : [...new Map([...current, ...data.items].map((item) => [item.id, item])).values()]);
       setNextPage(data.nextPage);
+      loadedPages.current = page === 1 ? 1 : Math.max(loadedPages.current, page);
     } catch (error) {
       setErro(error instanceof Error ? error.message : "Não foi possível carregar o inventário. Tente novamente.");
       setFailedPage(page);
@@ -107,12 +137,13 @@ export default function InventoryPage() {
       </div>
 
       <div className={styles.list} aria-busy={loading}>
+        {aviso && <p className={styles.hint} role="status">{aviso}</p>}
         {nextPage !== null && <p className={styles.hint}>Busca e filtros nos itens carregados.</p>}
         {erro && (
           <div className={styles.empty} role="alert">
             <p>{erro}</p>
             <Link href="/login">Entrar novamente</Link>{" "}
-            <button type="button" className={styles.filterPill} disabled={loading}
+            <button type="button" className={styles.filterPill} disabled={loading || baixasEmAndamento > 0}
               onClick={() => void carregarItens(failedPage)}>Tentar novamente</button>
           </div>
         )}
@@ -173,6 +204,8 @@ export default function InventoryPage() {
                     {item.ruptura ? "Alerta Ruptura" : "Normal"}
                   </span>
                 </div>
+                <StockDecrease item={item} className={styles.stockAction} disabled={loading}
+                  onSuccess={() => atualizarSaldo(item)} onBusyChange={acompanharBaixa} />
               </div>
 
               <span className={styles.price}>
@@ -181,7 +214,7 @@ export default function InventoryPage() {
             </div>
           ))}
         {!loading && !erro && nextPage !== null && (
-          <button type="button" className={styles.filterPill} onClick={() => void carregarItens(nextPage)}>
+          <button type="button" className={styles.filterPill} disabled={baixasEmAndamento > 0} onClick={() => void carregarItens(nextPage)}>
             Carregar mais
           </button>
         )}

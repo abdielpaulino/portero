@@ -67,7 +67,8 @@
   margin-bottom: 1rem;
 }
 
-.filterPill {
+.filterPill,
+.stockAction button {
   padding: 0.4rem 0.9rem;
   border-radius: var(--border);
   border: 1.5px solid var(--purple);
@@ -78,11 +79,58 @@
   cursor: pointer;
 }
 
-.filterPill:disabled {
+.filterPill:disabled,
+.stockAction button:disabled {
   opacity: 0.6;
   cursor: wait;
 }
 
+.stockAction {
+  margin-top: 0.6rem;
+  font-size: 0.8rem;
+  color: var(--dark-font);
+}
+
+.stockAction form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stockAction form > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.stockAction input {
+  width: 100%;
+  max-width: 8rem;
+  box-sizing: border-box;
+  border: 2px solid var(--border-color);
+  border-radius: var(--border);
+  padding: 0.4rem 0.6rem;
+  color: var(--dark-font);
+  background: var(--conteiner-bg);
+}
+
+.stockAction input:focus {
+  outline: none;
+  border-color: var(--purple);
+}
+
+.stockAction p {
+  margin: 0.3rem 0;
+  line-height: 1.4;
+}
+
+.stockAction [role="alert"] {
+  color: #e11d48;
+}
+
+.stockAction [role="status"] {
+  color: #16a34a;
+}
 
 .filterPill[data-active="true"] {
   background: var(--purple);
