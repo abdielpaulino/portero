@@ -1,0 +1,16 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  padding: 1rem;
+  border: 2px solid var(--border-color);
+  border-radius: var(--border);
+  background: var(--conteiner-bg);
+  color: var(--dark-font);
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.card p { margin: 0; }
+.card small { color: var(--light-font); }
+.warning { color: #e11d48; }

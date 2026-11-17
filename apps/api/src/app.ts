@@ -2,17 +2,33 @@ import cors from "cors";
 import express, { type ErrorRequestHandler } from "express";
 import { createAuthRouter } from "./auth/routes.js";
 import type { AuthRepository } from "./auth/repository.js";
+import { createNuvemshopRouter, type NuvemshopOptions } from "./nuvemshop/routes.js";
+import { createInventoryRouter, type InventoryOptions } from "./inventory/routes.js";
+import { createStockRouter, type StockOptions } from "./stock/routes.js";
+import { createStockHistoryRouter, type StockHistoryRepository } from "./inventory/history.js";
 
 type AppOptions = {
   repository: AuthRepository;
   jwtSecret: string;
   secureCookies?: boolean;
   webOrigin?: string;
+  environment?: string;
+  nuvemshop?: NuvemshopOptions;
+  inventory?: InventoryOptions;
+  stock?: StockOptions;
+  history?: StockHistoryRepository;
 };
 
-export function createApp({ repository, jwtSecret, secureCookies = false, webOrigin = "http://localhost:3000" }: AppOptions) {
+export function createApp({ repository, jwtSecret, secureCookies = false, webOrigin = "http://localhost:3000", environment, nuvemshop, inventory, stock, history }: AppOptions) {
   const app = express();
   app.use(cors({ origin: webOrigin, credentials: true }));
+  app.use((req, res, next) => {
+    if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && req.get("Origin") && req.get("Origin") !== webOrigin) {
+      res.status(403).json({ message: "Origem da solicitação não permitida." });
+      return;
+    }
+    next();
+  });
   app.use(express.json({ limit: "8kb" }));
 
   app.get("/health", (_req, res) => {
@@ -20,6 +36,14 @@ export function createApp({ repository, jwtSecret, secureCookies = false, webOri
   });
 
   app.use("/auth", createAuthRouter(repository, jwtSecret, secureCookies));
+  app.use("/inventory", createInventoryRouter(jwtSecret, inventory));
+  app.use("/inventory/stock-decreases", createStockHistoryRouter(repository, jwtSecret, history));
+  if (environment === "development") {
+    app.use("/inventory/stock-decreases", createStockRouter(jwtSecret, stock));
+  }
+  if (environment === "development" && nuvemshop) {
+    app.use("/auth/nuvemshop", createNuvemshopRouter(nuvemshop, jwtSecret));
+  }
 
   const handleError: ErrorRequestHandler = (error, _req, res, _next) => {
     const status = error.status === 400 || error.status === 413 ? error.status : 500;

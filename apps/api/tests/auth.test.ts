@@ -3,10 +3,10 @@ import { once } from "node:events";
 import type { Server } from "node:http";
 import { after, before, beforeEach, describe, it } from "node:test";
 import { hashSync } from "bcryptjs";
-import { decodeJwt, jwtVerify, SignJWT, type JWTPayload } from "jose";
+import { jwtVerify, SignJWT, type JWTPayload } from "jose";
 import { createApp } from "../src/app.js";
 import type { AuthRepository, LojaLogin, UsuarioLogin } from "../src/auth/repository.js";
-import { SELECTION_COOKIE, SELECTION_SECONDS, SESSION_COOKIE, SESSION_SECONDS } from "../src/auth/session.js";
+import { SESSION_COOKIE, SESSION_SECONDS } from "../src/auth/session.js";
 
 const secret = "segredo-apenas-dos-testes-offline-com-32-bytes";
 const key = new TextEncoder().encode(secret);
@@ -34,8 +34,8 @@ describe("autenticação sem banco", { concurrency: false }, () => {
     },
   };
 
-  async function startServer() {
-    const server = createApp({ repository, jwtSecret: secret, secureCookies: false }).listen(0, "127.0.0.1");
+  async function startServer(webOrigin?: string) {
+    const server = createApp({ repository, jwtSecret: secret, secureCookies: false, webOrigin }).listen(0, "127.0.0.1");
     servers.push(server);
     await once(server, "listening");
     const address = server.address();
@@ -162,80 +162,45 @@ describe("autenticação sem banco", { concurrency: false }, () => {
     assert.equal(setCookie(result.headers, SESSION_COOKIE).value, "");
   });
 
-  it("para várias lojas emite somente token temporário com audience e propósito próprios", async () => {
+  it("recusa associações ambíguas sem escolher uma loja ou emitir token de seleção", async () => {
     lojasPorUsuario.set(usuario.id, [lojaA, lojaB]);
     const result = await login();
-    assert.equal(result.status, 200);
-    assert.deepEqual(result.body, { requiresStoreSelection: true, lojas: [lojaA, lojaB] });
-    assert.equal(setCookie(result.headers, SESSION_COOKIE).value, "");
-    const selection = setCookie(result.headers, SELECTION_COOKIE);
-    assert.match(selection.header, /HttpOnly/i);
-    assert.match(selection.header, new RegExp(`Max-Age=${SELECTION_SECONDS}(?:;|$)`));
-    const { payload } = await jwtVerify(selection.value, key, { audience: "portero-store-selection", issuer: "portero" });
-    assert.equal(payload.sub, String(usuario.id));
-    assert.equal(payload.purpose, "store-selection");
-    assert.equal(payload.exp! - payload.iat!, SELECTION_SECONDS);
-    assert.equal(payload.lojaId, undefined);
-    assert.equal(payload.senhaHash, undefined);
-    assert.equal(payload.password, undefined);
-    assert.ok(!JSON.stringify(result.body).includes(senhaHash));
-  });
-
-  it("conclui a escolha em outra instância e usa a loja do JWT na rota protegida", async () => {
-    lojasPorUsuario.set(usuario.id, [lojaA, lojaB]);
-    const pending = await login();
-    const selection = setCookie(pending.headers, SELECTION_COOKIE);
-    const selected = await request("/auth/select-store", {
-      body: { lojaId: lojaB.id }, cookie: selection.cookie, base: secondBaseUrl,
-    });
-    assert.equal(selected.status, 200);
-    assert.deepEqual(selected.body.loja, lojaB);
-    assert.equal(setCookie(selected.headers, SELECTION_COOKIE).value, "");
-    const session = setCookie(selected.headers, SESSION_COOKIE);
-    const result = await request(`/auth/session?lojaId=${lojaA.id}`, { cookie: session.cookie });
-    assert.equal(result.status, 200);
-    assert.deepEqual(result.body, { usuarioId: usuario.id, loja: lojaB });
-  });
-
-  it("exige token temporário válido para escolher a loja", async () => {
-    lojasPorUsuario.set(usuario.id, [lojaA, lojaB]);
-    const pending = await login();
-    const selection = setCookie(pending.headers, SELECTION_COOKIE);
-    const claims = decodeJwt(selection.value);
-    const expired = await sign({ ...claims, exp: Math.floor(Date.now() / 1000) - 1 });
-    const wrongSignature = await sign(claims, new TextEncoder().encode("outro-segredo-de-testes-com-mais-de-32-bytes"));
-    const wrongPurpose = await sign({ ...claims, purpose: "session" });
-    const accessToken = await sign(sessionClaims());
-    for (const token of [undefined, "inválido", expired, wrongSignature, wrongPurpose, accessToken]) {
-      const result = await request("/auth/select-store", {
-        body: { lojaId: lojaA.id }, cookie: token ? `${SELECTION_COOKIE}=${token}` : undefined,
-      });
-      assert.equal(result.status, 401);
-      assert.equal(setCookie(result.headers, SELECTION_COOKIE).value, "");
-    }
-  });
-
-  it("valida a escolha e recusa loja fora da associação", async () => {
-    lojasPorUsuario.set(usuario.id, [lojaA, lojaB]);
-    const pending = await login();
-    const cookie = setCookie(pending.headers, SELECTION_COOKIE).cookie;
-    for (const lojaId of ["10", 0, -1, 1.5, null]) {
-      const result = await request("/auth/select-store", { body: { lojaId }, cookie });
-      assert.equal(result.status, 400);
-    }
-    const forbidden = await request("/auth/select-store", { body: { lojaId: 999 }, cookie });
-    assert.equal(forbidden.status, 403);
-    assert.equal(forbidden.headers.getSetCookie().some((item) => item.startsWith(`${SESSION_COOKIE}=`)), false);
-  });
-
-  it("reconsulta as associações antes de concluir a seleção", async () => {
-    lojasPorUsuario.set(usuario.id, [lojaA, lojaB]);
-    const pending = await login();
-    lojasPorUsuario.set(usuario.id, [lojaA]);
-    const result = await request("/auth/select-store", {
-      body: { lojaId: lojaB.id }, cookie: setCookie(pending.headers, SELECTION_COOKIE).cookie,
-    });
     assert.equal(result.status, 403);
+    assert.equal(setCookie(result.headers, SESSION_COOKIE).value, "");
+    assert.equal(result.body.lojas, undefined);
+    assert.equal(result.body.requiresStoreSelection, undefined);
+    assert.equal(setCookie(result.headers, "portero_store_selection").value, "");
+  });
+
+  it("usa a loja associada no servidor e ignora IDs enviados no login e na sessão", async () => {
+    const authenticated = await login({ email: usuario.email, password, lojaId: lojaB.id });
+    assert.equal(authenticated.status, 200);
+    assert.deepEqual(authenticated.body.loja, lojaA);
+    const session = setCookie(authenticated.headers, SESSION_COOKIE);
+    const { payload } = await jwtVerify(session.value, key, { audience: "portero-api", issuer: "portero" });
+    assert.equal(payload.lojaId, lojaA.id);
+    const result = await request(`/auth/session?lojaId=${lojaB.id}`, { cookie: session.cookie, base: secondBaseUrl });
+    assert.equal(result.status, 200);
+    assert.deepEqual(result.body, { usuarioId: usuario.id, loja: lojaA });
+  });
+
+  it("não autentica uma conta sem associação mesmo que o frontend informe uma loja", async () => {
+    lojasPorUsuario.set(usuario.id, []);
+    const result = await login({ email: usuario.email, password, lojaId: lojaA.id });
+    assert.equal(result.status, 403);
+    assert.equal(setCookie(result.headers, SESSION_COOKIE).value, "");
+  });
+
+  it("remove a rota de seleção de loja mesmo para uma sessão autenticada", async () => {
+    const authenticated = await login();
+    const result = await fetch(`${baseUrl}/auth/select-store`, {
+      method: "POST", headers: { "Content-Type": "application/json",
+        Cookie: setCookie(authenticated.headers, SESSION_COOKIE).cookie },
+      body: JSON.stringify({ lojaId: lojaB.id }),
+    });
+    assert.equal(result.status, 404);
+    const session = await request("/auth/session", { cookie: setCookie(authenticated.headers, SESSION_COOKIE).cookie });
+    assert.deepEqual(session.body, { usuarioId: usuario.id, loja: lojaA });
   });
 
   it("protege a sessão contra token ausente, adulterado, expirado ou sem contexto válido", async () => {
@@ -260,19 +225,77 @@ describe("autenticação sem banco", { concurrency: false }, () => {
     }
   });
 
-  it("não aceita token de seleção como sessão de acesso", async () => {
-    lojasPorUsuario.set(usuario.id, [lojaA, lojaB]);
-    const pending = await login();
-    const token = setCookie(pending.headers, SELECTION_COOKIE).value;
+  it("recusa tokens antigos de seleção e limpa o cookie legado no próximo login", async () => {
+    const token = await sign(sessionClaims({ aud: "portero-store-selection", purpose: "store-selection",
+      lojaId: undefined, nome: usuario.nome, email: usuario.email }));
     const result = await request("/auth/session", { cookie: `${SESSION_COOKIE}=${token}` });
     assert.equal(result.status, 401);
+    const authenticated = await request("/auth/login", {
+      body: { email: usuario.email, password }, cookie: `portero_store_selection=${token}`,
+    });
+    assert.equal(authenticated.status, 200);
+    assert.deepEqual(authenticated.body.loja, lojaA);
+    assert.equal(setCookie(authenticated.headers, "portero_store_selection").value, "");
   });
 
-  it("recusa a sessão e limpa o cookie quando o acesso à loja foi revogado", async () => {
+  it("recusa a sessão quando a associação foi revogada, trocada ou se tornou ambígua", async () => {
+    for (const lojas of [[], [lojaB], [lojaA, lojaB]]) {
+      lojasPorUsuario.set(usuario.id, [lojaA]);
+      const authenticated = await login();
+      lojasPorUsuario.set(usuario.id, lojas);
+      const result = await request("/auth/session", { cookie: setCookie(authenticated.headers, SESSION_COOKIE).cookie });
+      assert.equal(result.status, 403);
+      assert.equal(setCookie(result.headers, SESSION_COOKIE).value, "");
+    }
+  });
+
+  it("encerra a sessão no navegador e permite sair mesmo com cookie expirado", async () => {
     const authenticated = await login();
-    lojasPorUsuario.set(usuario.id, []);
-    const result = await request("/auth/session", { cookie: setCookie(authenticated.headers, SESSION_COOKIE).cookie });
-    assert.equal(result.status, 403);
-    assert.equal(setCookie(result.headers, SESSION_COOKIE).value, "");
+    for (const cookie of [setCookie(authenticated.headers, SESSION_COOKIE).cookie, `${SESSION_COOKIE}=expirado`, undefined]) {
+      const result = await fetch(`${baseUrl}/auth/logout`, {
+        method: "POST", headers: cookie ? { Cookie: cookie } : {},
+      });
+      assert.equal(result.status, 204);
+      const cleared = setCookie(result.headers, SESSION_COOKIE);
+      assert.equal(cleared.value, "");
+      assert.match(cleared.header, /HttpOnly/i);
+      assert.match(cleared.header, /SameSite=Lax/i);
+      assert.match(cleared.header, /Path=\//);
+      assert.equal(setCookie(result.headers, "portero_store_selection").value, "");
+      assert.equal(result.headers.get("Cache-Control"), "no-store");
+      assert.equal((await request("/auth/session", { cookie: cleared.cookie })).status, 401);
+    }
+  });
+
+  it("recusa origens externas em operações mutantes antes de consultar usuários ou limpar cookies", async () => {
+    for (const path of ["/auth/login", "/auth/logout", "/inventory/stock-decreases"]) {
+      for (const origin of ["https://outro.example.test", "http://localhost:3000.evil.test", "null"]) {
+        const response = await fetch(`${baseUrl}${path}`, {
+          method: "POST", headers: { Origin: origin, "Content-Type": "application/json" },
+          body: JSON.stringify({ email: usuario.email, password }),
+        });
+        assert.equal(response.status, 403);
+        assert.deepEqual(await response.json(), { message: "Origem da solicitação não permitida." });
+        assert.deepEqual(response.headers.getSetCookie(), []);
+      }
+    }
+    assert.deepEqual(emailsConsultados, []);
+  });
+
+  it("aceita WEB_ORIGIN configurada e requisições administrativas sem Origin", async () => {
+    const origin = "https://portero.example.test";
+    const target = await startServer(origin);
+    for (const requestOrigin of [origin, undefined]) {
+      const response = await fetch(`${target}/auth/login`, {
+        method: "POST", headers: {
+          "Content-Type": "application/json", ...(requestOrigin ? { Origin: requestOrigin } : {}),
+        }, body: JSON.stringify({ email: usuario.email, password }),
+      });
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("Access-Control-Allow-Origin"), origin);
+      assert.equal(response.headers.get("Access-Control-Allow-Credentials"), "true");
+      assert.ok(setCookie(response.headers, SESSION_COOKIE).value);
+    }
+    assert.deepEqual(emailsConsultados, [usuario.email, usuario.email]);
   });
 });

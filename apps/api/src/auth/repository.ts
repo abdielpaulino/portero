@@ -1,6 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 import { db } from "../db/client.js";
-import { lojas, usuariosApp, usuariosLojas } from "../db/schema.js";
+import { lojas, usuariosApp } from "../db/schema.js";
 
 export type UsuarioLogin = {
   id: number;
@@ -30,9 +30,9 @@ export const authRepository: AuthRepository = {
 
   listarLojas(usuarioId) {
     return db.select({ id: lojas.id, nomeLoja: lojas.nomeLoja })
-      .from(usuariosLojas)
-      .innerJoin(lojas, eq(lojas.id, usuariosLojas.lojaId))
-      .where(eq(usuariosLojas.usuarioId, usuarioId))
-      .orderBy(lojas.nomeLoja, lojas.id);
+      .from(usuariosApp)
+      .innerJoin(lojas, eq(lojas.id, usuariosApp.lojaId))
+      .where(eq(usuariosApp.id, usuarioId))
+      .limit(1);
   },
 };

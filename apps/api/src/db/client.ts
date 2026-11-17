@@ -7,6 +7,9 @@ if (!databaseUrl) {
   throw new Error("DATABASE_URL is required");
 }
 
-const pool = new Pool({ connectionString: databaseUrl, max: 5 });
+export const pool = new Pool({ connectionString: databaseUrl, max: 5, connectionTimeoutMillis: 10_000 });
+pool.on("error", () => {
+  console.error("A conexão ociosa com o banco foi encerrada.");
+});
 
 export const db = drizzle(pool, { schema });

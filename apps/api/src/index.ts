@@ -1,12 +1,37 @@
 import "dotenv/config";
 import { createApp } from "./app.js";
 import { authRepository } from "./auth/repository.js";
+import { createNuvemshopClient, readNuvemshopConfig } from "./nuvemshop/oauth.js";
+import { nuvemshopRepository } from "./nuvemshop/repository.js";
+import { inventoryRepository } from "./inventory/repository.js";
+import { createProductsClient } from "./nuvemshop/products.js";
+import { createStockClient } from "./nuvemshop/stock.js";
+import { stockRepository } from "./stock/repository.js";
+import { stockHistoryRepository } from "./inventory/history-repository.js";
+
+const nuvemshopConfig = readNuvemshopConfig(process.env);
 
 const app = createApp({
   repository: authRepository,
   jwtSecret: process.env.JWT_SECRET ?? "",
   secureCookies: process.env.NODE_ENV === "production",
   webOrigin: process.env.WEB_ORIGIN,
+  environment: process.env.NODE_ENV,
+  history: stockHistoryRepository,
+  stock: nuvemshopConfig?.demoStoreId ? {
+    demoStoreId: nuvemshopConfig.demoStoreId,
+    client: createStockClient(nuvemshopConfig.userAgent),
+    repository: stockRepository,
+  } : undefined,
+  inventory: process.env.NUVEMSHOP_USER_AGENT ? {
+    repository: inventoryRepository,
+    client: createProductsClient(process.env.NUVEMSHOP_USER_AGENT),
+  } : undefined,
+  nuvemshop: nuvemshopConfig ? {
+    config: nuvemshopConfig,
+    client: createNuvemshopClient(nuvemshopConfig),
+    repository: nuvemshopRepository,
+  } : undefined,
 });
 
 const port = process.env.PORT ?? 3001;
