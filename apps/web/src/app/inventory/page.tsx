@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import TabBar from "../components/TabBar";
+import { useSessao } from "@/lib/useSessao";
 import styles from "./inventory.module.css";
 
 interface Item {
@@ -19,6 +20,7 @@ type Filtro = "todos" | "ruptura" | "estoque";
 
 export default function InventoryPage() {
   const router = useRouter();
+  useSessao();
 
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);

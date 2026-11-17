@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { useSessao } from "@/lib/useSessao";
 import styles from "./productDetails.module.css";
 
 interface ProductDetail {
@@ -17,6 +18,7 @@ interface ProductDetail {
 export default function ProductDetailPage() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  useSessao();
 
   const [item, setItem] = useState<ProductDetail | null>(null);
   const [loading, setLoading] = useState(true);

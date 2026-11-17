@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import TabBar from "../components/TabBar";
+import { useSessao } from "@/lib/useSessao";
 import styles from "./dashboard.module.css";
 
 type StatusPedido = "completed" | "pending" | "paused";
@@ -76,6 +77,7 @@ function formatarMoeda(valor: number) {
 */
 
 export default function DashboardPage() {
+  useSessao();
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState(false);

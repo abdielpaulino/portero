@@ -3,10 +3,20 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import TabBar from "../components/TabBar";
+import { useSessao } from "@/lib/useSessao";
 import styles from "./settings.module.css";
 
 export default function SettingsPage() {
   const router = useRouter();
+  const { sessao } = useSessao();
+  const nomeLoja = sessao?.loja.nomeLoja ?? "";
+  const iniciais =
+    nomeLoja
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((parte) => parte[0].toUpperCase())
+      .join("") || "NS";
   const [notifications, setNotifications] = useState(true);
   const [autoSync, setAutoSync] = useState(true);
   const [rupturaQty, setRupturaQty] = useState("0");
@@ -24,10 +34,12 @@ export default function SettingsPage() {
       </div>
 
       <div className={`${styles.card} ${styles.account}`}>
-        <div className={styles.avatar}>NS</div>
+        <div className={styles.avatar}>{iniciais}</div>
         <div>
           <p className={styles.accountName}>Conta Nuvemshop</p>
-          <p className={styles.accountSubtitle}>Loja: Portero</p>
+          <p className={styles.accountSubtitle}>
+            Loja: {sessao ? nomeLoja : "Carregando..."}
+          </p>
         </div>
       </div>
 
