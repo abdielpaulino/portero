@@ -19,11 +19,6 @@ function isSessao(value: unknown): value is Sessao {
   );
 }
 
-/**
- * Consulta GET /api/auth/session (rota do back que valida o cookie JWT).
- * Redireciona para /login quando a sessão é inválida/expirada (401)
- * ou quando a loja deixou de estar disponível para o usuário (403).
- */
 export function useSessao() {
   const router = useRouter();
   const [sessao, setSessao] = useState<Sessao | null>(null);
