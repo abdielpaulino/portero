@@ -23,6 +23,7 @@ Professor orientador: Hyan Dias Tavares
 - Login interno, sessão com JWT em cookie HttpOnly e logout.
 - Criação administrativa de usuários, sem cadastro público.
 - Conexão OAuth com a Nuvemshop pelo backend.
+- Consulta de produtos, variantes, SKU, preços, imagens e quantidades.
 
 ## Stack
 
@@ -99,6 +100,8 @@ precisam ser recriados.
 ## Limitações
 
 - OAuth é restrito a `development` e à demo configurada.
+- Busca e filtros abrangem somente os produtos carregados. Dashboard e detalhes
+  ainda não têm integração; preferências de configurações não são salvas.
 - Cotação de frete não faz parte do escopo. Cadastro e exclusão de produtos
   permanecem na Nuvemshop.
 - O uso na loja do cliente depende de instalação administrativa, HTTPS, revisão

@@ -3,6 +3,7 @@ import express, { type ErrorRequestHandler } from "express";
 import { createAuthRouter } from "./auth/routes.js";
 import type { AuthRepository } from "./auth/repository.js";
 import { createNuvemshopRouter, type NuvemshopOptions } from "./nuvemshop/routes.js";
+import { createInventoryRouter, type InventoryOptions } from "./inventory/routes.js";
 
 type AppOptions = {
   repository: AuthRepository;
@@ -11,9 +12,10 @@ type AppOptions = {
   webOrigin?: string;
   environment?: string;
   nuvemshop?: NuvemshopOptions;
+  inventory?: InventoryOptions;
 };
 
-export function createApp({ repository, jwtSecret, secureCookies = false, webOrigin = "http://localhost:3000", environment, nuvemshop }: AppOptions) {
+export function createApp({ repository, jwtSecret, secureCookies = false, webOrigin = "http://localhost:3000", environment, nuvemshop, inventory }: AppOptions) {
   const app = express();
   app.use(cors({ origin: webOrigin, credentials: true }));
   app.use((req, res, next) => {
@@ -30,6 +32,7 @@ export function createApp({ repository, jwtSecret, secureCookies = false, webOri
   });
 
   app.use("/auth", createAuthRouter(repository, jwtSecret, secureCookies));
+  app.use("/inventory", createInventoryRouter(jwtSecret, inventory));
   if (environment === "development" && nuvemshop) {
     app.use("/auth/nuvemshop", createNuvemshopRouter(nuvemshop, jwtSecret));
   }

@@ -1,0 +1,64 @@
+import assert from "node:assert/strict";
+import { it } from "node:test";
+import { carregarInventario, filtrarItens, precoLabel, quantidadeLabel, type Item } from "../src/app/inventory/data";
+import nextConfig from "../next.config";
+
+const item: Item = { id: "100:101", produtoId: "100", varianteId: "101", nome: "Luva Portero",
+  variante: "9 / Azul", sku: "LUVA-9", preco: 129.9, quantidade: 3, ruptura: false };
+
+it("carrega uma página pelo proxy com cookie de sessão, sem credenciais da Nuvemshop", async () => {
+  const controller = new AbortController();
+  const fetcher: typeof fetch = async (input, init) => {
+    assert.equal(input, "/api/inventory?page=2");
+    assert.equal(init?.credentials, "same-origin");
+    assert.equal(init?.cache, "no-store");
+    assert.equal(init?.signal, controller.signal);
+    assert.equal(new Headers(init?.headers).has("Authorization"), false);
+    return Response.json({ items: [item], page: 2, nextPage: 3 });
+  };
+  assert.deepEqual(await carregarInventario(2, controller.signal, fetcher), { items: [item], page: 2, nextPage: 3 });
+});
+
+it("aceita inventário vazio e fim da paginação", async () => {
+  assert.deepEqual(await carregarInventario(1, undefined, async () => Response.json({ items: [], page: 1, nextPage: null })),
+    { items: [], page: 1, nextPage: null });
+});
+
+it("distingue sessão expirada, falta de permissão e falha da Nuvemshop", async () => {
+  for (const [status, message] of [[401, /Sessão expirada/], [403, /acesso/], [503, /Tente novamente/]] as const) {
+    await assert.rejects(carregarInventario(1, undefined, async () => new Response("corpo-remoto-nao-exibir", { status })), message);
+  }
+});
+
+it("recusa respostas incompletas e páginas inconsistentes", async () => {
+  for (const payload of [null, {}, { items: [{}], page: 1, nextPage: null },
+    { items: [item], page: 2, nextPage: null }, { items: [item], page: 1, nextPage: 1 }]) {
+    await assert.rejects(carregarInventario(1, undefined, async () => Response.json(payload)), /Resposta inválida/);
+  }
+});
+
+it("busca por produto, variante e SKU, inclusive sem SKU", () => {
+  const other = { ...item, id: "100:102", variante: "10 / Vermelha", sku: null };
+  assert.deepEqual(filtrarItens([item, other], " azul ", "todos"), [item]);
+  assert.deepEqual(filtrarItens([item, other], "LUVA-9", "todos"), [item]);
+  assert.equal(filtrarItens([item, other], "portero", "todos").length, 2);
+});
+
+it("distingue ruptura, quantidade disponível e estoque sem controle nos filtros e rótulos", () => {
+  const zero = { ...item, id: "100:102", quantidade: 0, ruptura: true };
+  const unlimited = { ...item, id: "100:103", quantidade: null, ruptura: false, preco: null };
+  assert.deepEqual(filtrarItens([item, zero, unlimited], "", "ruptura"), [zero]);
+  assert.deepEqual(filtrarItens([item, zero, unlimited], "", "estoque"), [item, unlimited]);
+  assert.equal(quantidadeLabel(zero), "0 UN");
+  assert.equal(quantidadeLabel(unlimited), "Sem controle");
+  assert.equal(precoLabel(unlimited), "Sob consulta");
+  assert.match(precoLabel(item), /129,90/);
+});
+
+it("encaminha a listagem do inventário para a API", async () => {
+  const rewrites = await nextConfig.rewrites!();
+  assert.ok(Array.isArray(rewrites));
+  const inventory = rewrites.find((entry) => entry.source === "/api/inventory");
+  assert.ok(inventory);
+  assert.ok(inventory.destination.endsWith("/inventory"));
+});

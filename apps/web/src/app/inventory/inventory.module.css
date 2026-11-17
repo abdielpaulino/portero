@@ -78,6 +78,12 @@
   cursor: pointer;
 }
 
+.filterPill:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+
 .filterPill[data-active="true"] {
   background: var(--purple);
   color: white;
@@ -122,6 +128,12 @@
   color: var(--light-font);
   font-size: 0.9rem;
   padding: 2rem 0;
+}
+
+.hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--light-font);
 }
 
 .thumb {
