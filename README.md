@@ -22,6 +22,7 @@ Professor orientador: Hyan Dias Tavares
 
 - Login interno, sessão com JWT em cookie HttpOnly e logout.
 - Criação administrativa de usuários, sem cadastro público.
+- Conexão OAuth com a Nuvemshop pelo backend.
 
 ## Stack
 
@@ -56,6 +57,10 @@ Em `apps/api/.env`, preencher:
   com `sslmode=require`. O lock de estoque não é compatível com transaction pooler.
 - `JWT_SECRET`: segredo exclusivo do backend, com pelo menos 32 bytes aleatórios.
 - `NODE_ENV=development`, `PORT=3001` e `WEB_ORIGIN=http://localhost:3000`.
+- `NUVEMSHOP_CLIENT_ID`, `NUVEMSHOP_CLIENT_SECRET` e `NUVEMSHOP_USER_AGENT` com os
+  dados do aplicativo. A identificação deve incluir nome e contato, como
+  `PORTERO (contato@example.com)`.
+- `NUVEMSHOP_DEMO_STORE_ID`: ID da loja demo; vazio somente na descoberta inicial.
 
 Em `apps/web/.env`, usar `API_URL=http://localhost:3001`. `API_URL` e `WEB_ORIGIN`
 não devem ter barra final. Credenciais permanecem no backend e os arquivos `.env`
@@ -77,12 +82,28 @@ npm run dev:web
 
 Frontend em `http://localhost:3000` e API em `http://localhost:3001`.
 
-Com uma única loja conectada no banco, criar a conta interna em um terminal
-interativo com `npm run user:create-initial --workspace=@portero/api`.
-O script solicita nome, e-mail e senha oculta e não altera contas existentes.
+Na primeira configuração, cadastrar o site do aplicativo como
+`http://localhost:3000` e o callback como
+`http://localhost:3001/auth/nuvemshop/callback`, com permissões de leitura/escrita
+de produtos e View Logistics para estoque por local. Com a API iniciada e o ID
+da demo vazio, abrir `http://localhost:3001/auth/nuvemshop/setup`. Confirmar o ID
+retornado, preencher `NUVEMSHOP_DEMO_STORE_ID` e reiniciar a API. Concluir a conexão
+por `http://localhost:3001/auth/nuvemshop/authorize`, no mesmo navegador.
+
+O OAuth expira em cinco minutos; uma nova autorização do mesmo aplicativo e loja
+pode invalidar o token anterior. Após conectar a loja, criar a conta interna em
+um terminal interativo com `npm run user:create-initial --workspace=@portero/api`.
+O script solicita nome, e-mail e senha oculta. OAuth e conta já configurados não
+precisam ser recriados.
 
 ## Limitações
 
+- OAuth é restrito a `development` e à demo configurada.
 - Cotação de frete não faz parte do escopo. Cadastro e exclusão de produtos
   permanecem na Nuvemshop.
-- Logout remove o cookie, mas cópias do JWT permanecem válidas até expirar.
+- O uso na loja do cliente depende de instalação administrativa, HTTPS, revisão
+  da proteção dos tokens e permissões do banco, consumo único de `state`, webhooks
+  exigidos pela Nuvemshop e limitação de tentativas de login. Nos deploys separados,
+  configurar `API_URL` no build e na execução do Next.js e `WEB_ORIGIN` com a origem
+  exata do frontend, preservando os encaminhamentos da API. Logout remove o cookie,
+  mas cópias do JWT permanecem válidas até expirar. O build web requer Google Fonts.

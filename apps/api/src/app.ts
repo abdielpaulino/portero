@@ -2,15 +2,18 @@ import cors from "cors";
 import express, { type ErrorRequestHandler } from "express";
 import { createAuthRouter } from "./auth/routes.js";
 import type { AuthRepository } from "./auth/repository.js";
+import { createNuvemshopRouter, type NuvemshopOptions } from "./nuvemshop/routes.js";
 
 type AppOptions = {
   repository: AuthRepository;
   jwtSecret: string;
   secureCookies?: boolean;
   webOrigin?: string;
+  environment?: string;
+  nuvemshop?: NuvemshopOptions;
 };
 
-export function createApp({ repository, jwtSecret, secureCookies = false, webOrigin = "http://localhost:3000" }: AppOptions) {
+export function createApp({ repository, jwtSecret, secureCookies = false, webOrigin = "http://localhost:3000", environment, nuvemshop }: AppOptions) {
   const app = express();
   app.use(cors({ origin: webOrigin, credentials: true }));
   app.use((req, res, next) => {
@@ -27,6 +30,9 @@ export function createApp({ repository, jwtSecret, secureCookies = false, webOri
   });
 
   app.use("/auth", createAuthRouter(repository, jwtSecret, secureCookies));
+  if (environment === "development" && nuvemshop) {
+    app.use("/auth/nuvemshop", createNuvemshopRouter(nuvemshop, jwtSecret));
+  }
 
   const handleError: ErrorRequestHandler = (error, _req, res, _next) => {
     const status = error.status === 400 || error.status === 413 ? error.status : 500;
