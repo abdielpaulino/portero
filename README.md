@@ -24,6 +24,7 @@ Professor orientador: Hyan Dias Tavares
 - Criação administrativa de usuários, sem cadastro público.
 - Conexão OAuth com a Nuvemshop pelo backend.
 - Consulta de produtos, variantes, SKU, preços, imagens e quantidades.
+- Consulta do histórico de baixas.
 
 ## Stack
 
@@ -100,6 +101,7 @@ precisam ser recriados.
 ## Limitações
 
 - OAuth é restrito a `development` e à demo configurada.
+- O histórico completo ainda aguarda teste real na demo.
 - Busca e filtros abrangem somente os produtos carregados. Dashboard e detalhes
   ainda não têm integração; preferências de configurações não são salvas.
 - Cotação de frete não faz parte do escopo. Cadastro e exclusão de produtos

@@ -4,6 +4,7 @@ import { createAuthRouter } from "./auth/routes.js";
 import type { AuthRepository } from "./auth/repository.js";
 import { createNuvemshopRouter, type NuvemshopOptions } from "./nuvemshop/routes.js";
 import { createInventoryRouter, type InventoryOptions } from "./inventory/routes.js";
+import { createStockHistoryRouter, type StockHistoryRepository } from "./inventory/history.js";
 
 type AppOptions = {
   repository: AuthRepository;
@@ -13,9 +14,10 @@ type AppOptions = {
   environment?: string;
   nuvemshop?: NuvemshopOptions;
   inventory?: InventoryOptions;
+  history?: StockHistoryRepository;
 };
 
-export function createApp({ repository, jwtSecret, secureCookies = false, webOrigin = "http://localhost:3000", environment, nuvemshop, inventory }: AppOptions) {
+export function createApp({ repository, jwtSecret, secureCookies = false, webOrigin = "http://localhost:3000", environment, nuvemshop, inventory, history }: AppOptions) {
   const app = express();
   app.use(cors({ origin: webOrigin, credentials: true }));
   app.use((req, res, next) => {
@@ -33,6 +35,7 @@ export function createApp({ repository, jwtSecret, secureCookies = false, webOri
 
   app.use("/auth", createAuthRouter(repository, jwtSecret, secureCookies));
   app.use("/inventory", createInventoryRouter(jwtSecret, inventory));
+  app.use("/inventory/stock-decreases", createStockHistoryRouter(repository, jwtSecret, history));
   if (environment === "development" && nuvemshop) {
     app.use("/auth/nuvemshop", createNuvemshopRouter(nuvemshop, jwtSecret));
   }

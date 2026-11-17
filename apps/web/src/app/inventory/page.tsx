@@ -52,6 +52,7 @@ export default function InventoryPage() {
       <div className={styles.header}>
         <h1 className={styles.title}>Inventário</h1>
         <p className={styles.subtitle}>Produtos e variantes da loja</p>
+        <Link href="/history">Histórico de baixas</Link>
       </div>
 
       <div className={styles.searchWrapper}>
