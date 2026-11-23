@@ -90,6 +90,6 @@ export function presentSale(sale: Sale) {
     itens: sale.itens.map(item => ({ ...item, precoUnitario: money(cents(item.precoUnitario)), desconto: money(cents(item.desconto)), total: money(cents(item.total)) })),
     movimentos: sale.movimentos.map(event => ({ ...event, valor: money(cents(event.valor)) })),
     origem: "portero" as const, situacaoPagamento: paymentStatus(sale),
-    estoque: states.length > 0 && states.every(state => state === "sincronizada") ? "sincronizada" : states.some(state => state === "sincronizada") ? "parcial" : "pendente",
-    exigeConferencia: states.length === 0 || states.some(state => !["nao_solicitada", "registrada", "sincronizada", "rejeitada"].includes(state)) };
+    estoque: states.length > 0 && states.every(state => state === "sincronizada") ? "sincronizada" : states.some(state => ["sincronizada", "conferida_parcial"].includes(state)) ? "parcial" : "pendente",
+    exigeConferencia: states.length === 0 || states.some(state => !["nao_solicitada", "registrada", "sincronizada", "rejeitada", "conferida_parcial"].includes(state)) };
 }

@@ -10,7 +10,10 @@ export function readRuntime(env: NodeJS.ProcessEnv) {
   if (env.VERCEL_ENV === "production" && !production) throw new Error("A API publicada exige NODE_ENV=production.");
   if (env.STOCK_DECREASES_ENABLED && !["true", "false"].includes(env.STOCK_DECREASES_ENABLED)) throw new Error("STOCK_DECREASES_ENABLED deve ser true ou false.");
   for (const flag of ["EXTERNAL_SALES_ENABLED", "ONLINE_ORDERS_ENABLED"]) if (env[flag] && !["true", "false"].includes(env[flag]!)) throw new Error(`${flag} deve ser true ou false.`);
-  if (env.INVITATIONS_ENABLED && !["true", "false"].includes(env.INVITATIONS_ENABLED)) throw new Error("INVITATIONS_ENABLED deve ser true ou false.");
+  for (const flag of ["INVITATIONS_ENABLED", "STOCK_CONFERENCES_ENABLED", "STORE_SETTINGS_ENABLED", "STOCK_NOTIFICATIONS_ENABLED"])
+    if (env[flag] && !["true", "false"].includes(env[flag]!)) throw new Error(`${flag} deve ser true ou false.`);
+  if (env.STOCK_NOTIFICATIONS_ENABLED === "true" && (env.STORE_SETTINGS_ENABLED !== "true" || !env.CRON_SECRET || Buffer.byteLength(env.CRON_SECRET) < 32 || /[\r\n]/.test(env.CRON_SECRET)))
+    throw new Error("Notificações exigem preferências habilitadas e CRON_SECRET com pelo menos 32 bytes.");
   if (production && env.NUVEMSHOP_DEMO_STORE_ID) throw new Error("Use NUVEMSHOP_STORE_ID confirmado para produção.");
   const storeId = env.NUVEMSHOP_STORE_ID?.trim() || (!production ? env.NUVEMSHOP_DEMO_STORE_ID?.trim() : "") || "";
   const userAgent = env.NUVEMSHOP_USER_AGENT?.trim() ?? "";
@@ -25,5 +28,7 @@ export function readRuntime(env: NodeJS.ProcessEnv) {
   const webhooks = /^[1-9]\d*$/.test(clientId) && clientSecret ? { clientId, clientSecret, storeId } : undefined;
   if (production && !webhooks) throw new Error("Configure as credenciais do aplicativo para validar webhooks em produção.");
   return { production, webOrigin, apiOrigin, nuvemshop, integration: { storeId, userAgent }, webhooks,
-    stockEnabled: env.STOCK_DECREASES_ENABLED === "true", externalSalesEnabled: env.EXTERNAL_SALES_ENABLED === "true", onlineOrdersEnabled: env.ONLINE_ORDERS_ENABLED === "true", invitationsEnabled: env.INVITATIONS_ENABLED === "true" };
+    stockEnabled: env.STOCK_DECREASES_ENABLED === "true", externalSalesEnabled: env.EXTERNAL_SALES_ENABLED === "true", onlineOrdersEnabled: env.ONLINE_ORDERS_ENABLED === "true",
+    invitationsEnabled: env.INVITATIONS_ENABLED === "true", conferencesEnabled: env.STOCK_CONFERENCES_ENABLED === "true",
+    settingsEnabled: env.STORE_SETTINGS_ENABLED === "true", notificationsEnabled: env.STOCK_NOTIFICATIONS_ENABLED === "true" };
 }

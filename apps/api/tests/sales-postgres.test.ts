@@ -6,11 +6,16 @@ import { Client, Pool } from "pg";
 import { hash, presentSale, validateSale } from "../src/sales/domain.js";
 import { createSalesRepository } from "../src/sales/repository.js";
 import { inputBody, key } from "./sales-fixture.js";
+import { createInvitationRepository } from "../src/auth/invitations.js";
+import { createConferenceRepository, validateConference } from "../src/operations/conferences.js";
+import { createSettingsRepository, defaultSettings } from "../src/operations/settings.js";
 
 const localUrl = process.env.PORTERO_LOCAL_PG_URL;
 const quote = (name: string) => `"${name.replaceAll('"', '""')}"`;
 const migration = readFileSync(new URL("../sql/20261122-external-sales.sql", import.meta.url), "utf8");
 const review = readFileSync(new URL("../sql/20261122-external-sales-review.sql", import.meta.url), "utf8");
+const operational = readFileSync(new URL("../sql/20261122-operational-extension.sql", import.meta.url), "utf8");
+const operationalReview = readFileSync(new URL("../sql/20261122-operational-review.sql", import.meta.url), "utf8");
 
 // Nunca usa DATABASE_URL ou .env. Cria e remove somente um banco novo em servidor local explícito.
 it("migração e repositórios no PostgreSQL local descartável", { skip: localUrl ? false : "PORTERO_LOCAL_PG_URL não informado; PostgreSQL real não validado", timeout: 60_000 }, async t => {
@@ -62,6 +67,9 @@ it("migração e repositórios no PostgreSQL local descartável", { skip: localU
       AND c.relname IN ('lojas','usuarios_app','acessos_permitidos','baixas_estoque') AND a.attnum>0 AND NOT a.attisdropped ORDER BY c.relname,a.attnum`)).rows;
     const before = await snapshot();
     await database.query(review);
+    await database.query(operational);
+    await database.query(operationalReview);
+    assert.deepEqual(await snapshot(), before);
     const ddl = await database.connect();
     try {
       await ddl.query(migration);
@@ -72,6 +80,7 @@ it("migração e repositórios no PostgreSQL local descartável", { skip: localU
     await database.query(review);
     await database.query(`INSERT INTO lojas(id,nuvemshop_store_id,access_token,nome_loja,status) VALUES (10,'123','ficticio','Teste','ativa'),(20,'999','ficticio','Outra','ativa');
       INSERT INTO usuarios_app(id,loja_id,nome,email,senha_hash) VALUES (1,10,'A','a@example.test','ficticio'),(2,10,'B','b@example.test','ficticio'),(11,20,'C','c@example.test','ficticio')`);
+    await database.query("SELECT setval(pg_get_serial_sequence('public.usuarios_app','id'),(SELECT max(id) FROM usuarios_app))");
     const auth = { usuarioId: 1, lojaId: 10 }, repository = createSalesRepository(database, control, "123");
     const input = validateSale(inputBody), prepared = input.itens.map(item => ({ ...item, nomeProduto: "Luva", nomeVariante: item.varianteId, sku: null }));
     let saleId = 0, baixaId = 0;
@@ -168,13 +177,45 @@ it("migração e repositórios no PostgreSQL local descartável", { skip: localU
         assert.equal((await client.query("SELECT * FROM vendas_externas")).rowCount, 1);
       } finally { await client.query("RESET ROLE"); client.release(); }
     });
+    await t.test("convite real é consumido uma vez, não substitui contas e rejeita expiração", async () => {
+      await database.query("DELETE FROM usuarios_app WHERE loja_id=20; DELETE FROM lojas WHERE id=20");
+      const invitations = createInvitationRepository(database, "123"), invite = await invitations.issue("felipe@example.test");
+      const attempts = await Promise.allSettled([invitations.activate(invite.secret, "Felipe", "senha-local-apenas-teste", "senha-local-apenas-teste"), invitations.activate(invite.secret, "Felipe", "senha-local-apenas-teste", "senha-local-apenas-teste")]);
+      assert.equal(attempts.filter(result => result.status === "fulfilled").length, 1);
+      assert.equal((await database.query("SELECT count(*) FROM usuarios_app WHERE email='felipe@example.test'")).rows[0].count, "1");
+      await assert.rejects(invitations.inspect(invite.secret), { status: 410 });
+      const expired = await invitations.issue("expirado@example.test");
+      await database.query("UPDATE convites_conta SET criado_em=now()-interval '2 days',expira_em=now()-interval '1 day' WHERE email='expirado@example.test'");
+      await assert.rejects(invitations.inspect(expired.secret), { status: 410 });
+    });
+    await t.test("conferência auditada não envia estoque e mantém vínculo, idempotência e exclusão", async () => {
+      await database.query("UPDATE baixas_estoque SET status_sincronizacao='incerta' WHERE id=$1", [baixaId]);
+      const conferences = createConferenceRepository(database, "123"), request = randomUUID();
+      const body = validateConference({ conclusao: "inconclusiva", quantidadeComprovada: null, evidenciaTipo: "registro_movimentacao", evidenciaReferencia: "MOVIMENTO-LOCAL-TESTE", justificativa: "Evidência ainda insuficiente para comprovar o desconto.", confirmoEvidencia: true });
+      const result = await conferences.resolve(auth, baixaId, request, body);
+      assert.equal((await conferences.resolve(auth, baixaId, request, body)).id, result.id);
+      assert.equal((await database.query("SELECT status_sincronizacao FROM baixas_estoque WHERE id=$1", [baixaId])).rows[0].status_sincronizacao, "incerta");
+      await conferences.resolve(auth, baixaId, randomUUID(), validateConference({ ...body, conclusao: "integral", quantidadeComprovada: 1 }));
+      assert.equal((await conferences.list(auth, baixaId)).items.length, 2);
+    });
+    await t.test("preferências e deduplicação de alertas sobrevivem à nova instância", async () => {
+      const settings = createSettingsRepository(database, control, "123");
+      await settings.save(auth, { ...defaultSettings, notificacoesAtivas: true, emailNotificacoes: "felipe@example.test" });
+      await assert.rejects(settings.save(auth, defaultSettings), { status: 409 });
+      let sent = 0;
+      const products = { async list() { return { page: 1, nextPage: null, items: [{ id: "100:101", produtoId: "100", varianteId: "101", nome: "Luva", variante: "Azul", sku: null, preco: 10, quantidade: -1, ruptura: true }] }; } } as unknown as Parameters<typeof settings.monitor>[0];
+      const sender = async () => { sent++; return "provedor-ficticio"; };
+      await settings.monitor(products, sender);
+      await createSettingsRepository(database, control, "123").monitor(products, sender);
+      assert.equal(sent, 1); assert.equal((await database.query("SELECT estado FROM alertas_estoque")).rows[0].estado, "enviado");
+    });
     await t.test("exclusão respeita FKs novas e originais sem deixar itens ou movimentos", async () => {
       await assert.rejects(database.query("DELETE FROM baixas_estoque WHERE id=$1", [baixaId]), { code: "23503" });
       await assert.rejects(database.query("DELETE FROM usuarios_app WHERE id=1"), { code: "23503" });
       await database.query("DELETE FROM usuarios_app WHERE loja_id=20; DELETE FROM lojas WHERE id=20");
       const { createWebhookRepository } = await import("../src/nuvemshop/webhook-repository.js");
       await createWebhookRepository(database, 5_000).handle("123", "app/store_redact");
-      for (const table of ["movimentos_financeiros_venda", "itens_venda_externa", "vendas_externas", "baixas_estoque", "usuarios_app", "acessos_permitidos", "lojas"]) {
+      for (const table of ["convites_conta", "conferencias_baixa", "alertas_estoque", "configuracoes_loja", "movimentos_financeiros_venda", "itens_venda_externa", "vendas_externas", "baixas_estoque", "usuarios_app", "acessos_permitidos", "lojas"]) {
         assert.equal((await database.query(`SELECT count(*) FROM ${quote(table)}`)).rows[0].count, "0");
       }
       assert.deepEqual(await snapshot(), before);

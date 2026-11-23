@@ -7,21 +7,30 @@ import styles from "./dashboard.module.css";
 import { carregarDashboard, type DashboardData } from "./data";
 import { statusLabel } from "../history/data";
 import CommercialDashboard from "./CommercialDashboard";
+import { carregarSessao } from "../auth/session";
+import { usePreferences } from "../settings/usePreferences";
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
+  const [settingsEnabled, setSettingsEnabled] = useState(false);
+  const { preferences, error: preferencesError } = usePreferences(settingsEnabled);
   useEffect(() => {
     const controller = new AbortController();
-    void carregarDashboard(controller.signal).then(result => {
+    void carregarSessao(undefined, { signal: controller.signal }).then(session => { if (!controller.signal.aborted) setSettingsEnabled(session?.configuracoesHabilitadas === true); }).catch(() => {});
+    return () => controller.abort();
+  }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    void carregarDashboard(controller.signal, fetch, preferences?.limiteRuptura ?? 0).then(result => {
       if (!controller.signal.aborted) setData(result);
     }).catch((failure: unknown) => {
       if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : "Não foi possível carregar os indicadores.");
     }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, [revision]);
+  }, [revision, preferences?.limiteRuptura]);
 
   useEffect(() => {
     function refresh() {
@@ -34,7 +43,14 @@ export default function DashboardPage() {
   }, [loading]);
 
   function atualizar() { setData(null); setError(""); setLoading(true); setRevision(current => current + 1); }
+  useEffect(() => {
+    if (!preferences?.atualizacaoAutomatica) return;
+    const timer = window.setInterval(() => { if (!loading && document.visibilityState === "visible") { setLoading(true); setRevision(current => current + 1); } }, preferences.intervaloSegundos * 1000);
+    return () => window.clearInterval(timer);
+  }, [preferences, loading]);
   return <div className={styles.container} aria-busy={loading}>
+    {preferencesError && <p role="alert">{preferencesError}</p>}
+    {data && preferences && <p>Variantes em ruptura até {preferences.limiteRuptura}: {data.emRuptura}</p>}
     <div className={styles.header}>
       <div><h1 className={styles.title}>Fluxo do estoque</h1><p className={styles.subtitle}>Inventário e baixas da loja</p></div>
       <button className={styles.refreshButton} type="button" disabled={loading} onClick={atualizar}>Atualizar</button>

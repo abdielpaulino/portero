@@ -78,7 +78,7 @@ export function createStockRepository(database: Pool, externalSalesEnabled = fal
         store: stores.rows[0], operation, externalSale,
         async hasUnresolved(exceptId = 0) {
           const found = await connection.query(`SELECT id FROM baixas_estoque WHERE loja_id = $1 AND variant_id = $2
-            AND id <> $3 AND status_sincronizacao NOT IN ('sincronizada', 'rejeitada') LIMIT 1`, [auth.lojaId, variantId, exceptId]);
+            AND id <> $3 AND status_sincronizacao NOT IN ('sincronizada', 'rejeitada', 'conferida_parcial') LIMIT 1`, [auth.lojaId, variantId, exceptId]);
           return found.rows.length > 0;
         },
         async create(command) {

@@ -9,6 +9,7 @@ import { carregarCatalogo, precoLabel, quantidadeLabel } from "../inventory/data
 import { carregarSessao } from "../auth/session";
 import { carregarProduto, type ProductDetail } from "./data";
 import styles from "./productDetails.module.css";
+import { usePreferences } from "../settings/usePreferences";
 
 export default function ProductDetailView({ produtoId, varianteId }: { produtoId: string; varianteId?: string }) {
   const [product, setProduct] = useState<ProductDetail | null>(null);
@@ -17,11 +18,14 @@ export default function ProductDetailView({ produtoId, varianteId }: { produtoId
   const [error, setError] = useState(""), [notice, setNotice] = useState("");
   const [busy, setBusy] = useState(0);
   const generation = useRef(0);
+  const [settingsEnabled, setSettingsEnabled] = useState(false);
+  const { preferences, error: preferencesError } = usePreferences(settingsEnabled);
   const load = useCallback((signal?: AbortSignal) => {
     const current = ++generation.current;
     return Promise.all([carregarProduto(produtoId, signal), carregarSessao(undefined, { signal })]).then(([data, session]) => {
       if (signal?.aborted || current !== generation.current) return;
       setProduct(data); setEnabled(session?.baixasHabilitadas === true);
+      setSettingsEnabled(session?.configuracoesHabilitadas === true);
       setSelected(previous => previous || varianteId || data.items[0]?.varianteId || "");
     }).catch((failure: unknown) => {
       if (!signal?.aborted && current === generation.current) setError(failure instanceof Error ? failure.message : "Não foi possível carregar o produto.");
@@ -46,7 +50,14 @@ export default function ProductDetailView({ produtoId, varianteId }: { produtoId
     void carregarCatalogo().catch(() => setNotice("Baixa confirmada. Atualize o inventário ao retornar."));
   }, [refresh]);
   const item = product?.items.find(variant => variant.varianteId === selected);
+  useEffect(() => {
+    if (!preferences?.atualizacaoAutomatica) return;
+    const timer = window.setInterval(() => { if (!loading && busy === 0 && document.visibilityState === "visible") refresh(); }, preferences.intervaloSegundos * 1000);
+    return () => window.clearInterval(timer);
+  }, [preferences, loading, busy, refresh]);
   return <div className={styles.container} aria-busy={loading}>
+    {preferencesError && <p role="alert">{preferencesError}</p>}
+    {item && preferences && item.quantidade !== null && item.quantidade <= preferences.limiteRuptura && <p role="status">Variante no limite de ruptura ({preferences.limiteRuptura}).</p>}
     <div className={styles.topbar}>
       <Link className={styles.backBtn} href="/inventory">Voltar</Link>
       <button type="button" className={styles.stockLink} disabled={loading || busy > 0} onClick={refresh}>Atualizar estoque</button>

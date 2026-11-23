@@ -8,17 +8,21 @@ import styles from "./inventory.module.css";
 import { carregarCatalogo, filtrarItens, quantidadeLabel, precoLabel, type Item, type Filtro } from "./data";
 import StockDecrease from "./StockDecrease";
 import { carregarSessao } from "../auth/session";
+import { usePreferences } from "../settings/usePreferences";
 
 export default function InventoryPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<Filtro>("todos");
+  const [page, setPage] = useState(1);
   const [erro, setErro] = useState("");
   const [baixasEmAndamento, setBaixasEmAndamento] = useState(0);
   const [aviso, setAviso] = useState("");
   const [baixasHabilitadas, setBaixasHabilitadas] = useState(false);
   const [vendasHabilitadas, setVendasHabilitadas] = useState(false);
+  const [settingsEnabled, setSettingsEnabled] = useState(false);
+  const { preferences, error: preferencesError } = usePreferences(settingsEnabled);
   const refreshGeneration = useRef(0);
 
   const acompanharBaixa = useCallback((busy: boolean) => {
@@ -48,6 +52,7 @@ export default function InventoryPage() {
       if (signal?.aborted || generation !== refreshGeneration.current) return;
       setBaixasHabilitadas(session?.baixasHabilitadas === true);
       setVendasHabilitadas(session?.vendasExternasHabilitadas === true);
+      setSettingsEnabled(session?.configuracoesHabilitadas === true);
       setItems(catalogo);
     }).catch((error: unknown) => {
       if (signal?.aborted || generation !== refreshGeneration.current) return;
@@ -76,13 +81,22 @@ export default function InventoryPage() {
     return () => { window.removeEventListener("focus", atualizarAoRetornar); document.removeEventListener("visibilitychange", atualizarAoRetornar); };
   }, [loading, baixasEmAndamento, atualizarConsulta]);
 
-  const itensFiltrados = filtrarItens(items, busca, filtro);
+  useEffect(() => {
+    if (!preferences?.atualizacaoAutomatica) return;
+    const timer = window.setInterval(() => { if (!loading && baixasEmAndamento === 0 && document.visibilityState === "visible") atualizarConsulta(); }, preferences.intervaloSegundos * 1000);
+    return () => window.clearInterval(timer);
+  }, [preferences, loading, baixasEmAndamento, atualizarConsulta]);
+  const itensFiltrados = filtrarItens(items.map(item => ({ ...item, ruptura: item.quantidade !== null && item.quantidade <= (preferences?.limiteRuptura ?? 0) })), busca, filtro);
+  const pageCount = Math.max(1, Math.ceil(itensFiltrados.length / 30)), currentPage = Math.min(page, pageCount);
+  const visibleItems = itensFiltrados.slice((currentPage - 1) * 30, currentPage * 30);
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <h1 className={styles.title}>Inventário</h1>
         <p className={styles.subtitle}>Produtos e variantes da loja</p>
+        {preferences && <p>Limite de ruptura: {preferences.limiteRuptura}. Atualização da tela: {preferences.atualizacaoAutomatica ? `${preferences.intervaloSegundos}s` : "manual"}.</p>}
+        {preferencesError && <p role="alert">{preferencesError}</p>}
         <Link href="/history">Histórico de baixas</Link>
         {vendasHabilitadas && <><Link href="/sales">Registrar venda externa</Link><p>Dar baixa registra somente estoque. Use a venda externa para registrar canal, valores e pagamento.</p></>}
         <button type="button" className={styles.filterPill} disabled={loading || baixasEmAndamento > 0}
@@ -110,7 +124,7 @@ export default function InventoryPage() {
           placeholder="Itens, variantes, SKUs..."
           value={busca}
           disabled={loading}
-          onChange={(e) => setBusca(e.target.value)}
+          onChange={(e) => { setBusca(e.target.value); setPage(1); }}
         />
       </div>
 
@@ -120,7 +134,7 @@ export default function InventoryPage() {
           className={styles.filterPill}
           data-active={filtro === "todos"}
           disabled={loading}
-          onClick={() => setFiltro("todos")}
+          onClick={() => { setFiltro("todos"); setPage(1); }}
         >
           Todos
         </button>
@@ -129,7 +143,7 @@ export default function InventoryPage() {
           className={styles.filterPill}
           data-active={filtro === "ruptura"}
           disabled={loading}
-          onClick={() => setFiltro("ruptura")}
+          onClick={() => { setFiltro("ruptura"); setPage(1); }}
         >
           Ruptura
         </button>
@@ -138,7 +152,7 @@ export default function InventoryPage() {
           className={styles.filterPill}
           data-active={filtro === "estoque"}
           disabled={loading}
-          onClick={() => setFiltro("estoque")}
+          onClick={() => { setFiltro("estoque"); setPage(1); }}
         >
           Com estoque
         </button>
@@ -165,7 +179,7 @@ export default function InventoryPage() {
           <p className={styles.empty}>Nenhum item encontrado.</p>
         )}
 
-        {itensFiltrados.map((item) => (
+        {visibleItems.map((item) => (
             <div
               key={item.id}
               className={styles.card}
@@ -225,6 +239,11 @@ export default function InventoryPage() {
           ))}
       </div>
 
+      {!loading && !erro && itensFiltrados.length > 0 && <nav aria-label="Páginas do catálogo">
+        <p>Página {currentPage} de {pageCount} · {itensFiltrados.length} variantes encontradas no catálogo consultado</p>
+        <button type="button" className={styles.filterPill} disabled={currentPage <= 1 || baixasEmAndamento > 0} onClick={() => setPage(currentPage - 1)}>Anterior</button>
+        <button type="button" className={styles.filterPill} disabled={currentPage >= pageCount || baixasEmAndamento > 0} onClick={() => setPage(currentPage + 1)}>Próxima</button>
+      </nav>}
       <TabBar />
     </div>
   );

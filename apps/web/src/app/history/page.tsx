@@ -7,6 +7,8 @@ import styles from "../inventory/inventory.module.css";
 import historyStyles from "./history.module.css";
 import { carregarHistorico, statusLabel, type StockHistoryItem } from "./data";
 import RecoverDecrease from "./RecoverDecrease";
+import Conference from "./Conference";
+import { carregarSessao, type Session } from "../auth/session";
 
 export default function HistoryPage() {
   const [items, setItems] = useState<StockHistoryItem[]>([]);
@@ -14,6 +16,12 @@ export default function HistoryPage() {
   const [erro, setErro] = useState("");
   const [nextPage, setNextPage] = useState<number | null>(null);
   const [failedPage, setFailedPage] = useState(1);
+  const [session, setSession] = useState<Session | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    void carregarSessao(undefined, { signal: controller.signal }).then(value => { if (!controller.signal.aborted) setSession(value); }).catch(() => {});
+    return () => controller.abort();
+  }, []);
 
   const carregar = useCallback(async (page: number) => {
     setLoading(true);
@@ -60,7 +68,9 @@ export default function HistoryPage() {
         <p>Usuário: {item.usuario?.nome || item.usuario?.email || "Não disponível"}</p>
         <small>Registro: {item.criadoEm ? new Date(item.criadoEm).toLocaleString("pt-BR") : "Data não disponível"}</small>
         {item.status === "registrada" && <RecoverDecrease item={item} onChange={() => void carregar(1)} />}
-        {!["sincronizada", "rejeitada", "registrada"].includes(item.status) &&
+        {session?.conferenciasHabilitadas && <Conference item={item} session={session} onChange={() => void carregar(1)} />}
+        {item.status === "conferida_parcial" && <p>Aplicação parcial conferida. Nenhuma quantidade restante é enviada automaticamente.</p>}
+        {!["sincronizada", "rejeitada", "registrada", "conferida_parcial"].includes(item.status) &&
           <p className={historyStyles.warning}>Solicite conferência da baixa. Não registre esta venda novamente.</p>}
       </article>)}
       {!erro && nextPage !== null && <button type="button" className={styles.filterPill} disabled={loading}

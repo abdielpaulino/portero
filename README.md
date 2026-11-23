@@ -24,17 +24,19 @@ Professor orientador: Hyan Dias Tavares
 - Conta por convite administrativo de uso único, com e-mail autorizado e expiração;
   comando administrativo preservado como alternativa, sem cadastro público.
 - OAuth administrativo para a primeira ativação de uma única loja.
-- Consulta do catálogo completo, com busca por produto ou SKU e filtros de estoque.
+- Consulta do catálogo completo, com busca por produto ou SKU, filtros e paginação.
 - Detalhes do produto, seleção de variante, preço, imagem e quantidade.
 - Baixa por venda externa em duas etapas, usando o ID original de
   `baixas_estoque`, preservando as quatro tabelas originais.
-- Histórico com recuperação de operações registradas.
+- Histórico com recuperação e conferência administrativa de operações incertas.
 - Dashboard com contagens do catálogo, estoque não controlado e baixas recentes.
 - Extensão comercial para vendas externas, itens, canal e recebimentos/estornos
   informados pelo administrador, sem processar pagamentos.
 - Indicadores mensais separados de vendas externas e pedidos online, com moedas
   separadas e distinção entre valor dos pedidos e dinheiro recebido.
 - Webhooks assinados de suspensão, desinstalação e privacidade da integração.
+- Preferências por loja, limite de ruptura e atualização periódica enquanto a tela
+  estiver visível. Monitoramento diário e alertas usam configuração própria.
 
 ## Stack
 
@@ -91,10 +93,9 @@ incremental própria, preparada para revisão e ainda não aplicada. Manter
 `EXTERNAL_SALES_ENABLED=false` até a conferência no banco de teste. A consulta de
 pedidos é ativada separadamente por `ONLINE_ORDERS_ENABLED`, após conferir
 `read_orders`. Modelo e ordem de ativação estão em [VENDAS.md](VENDAS.md).
-
-Convites usam `20261122-operational-extension.sql`, preparado e não aplicado.
-Manter `INVITATIONS_ENABLED=false` até validar a migração e as permissões em
-[DEPLOY.md](DEPLOY.md).
+Convites, conferências e preferências usam `20261122-operational-extension.sql`,
+também preparado e não aplicado. Manter suas flags desativadas até a migração e
+a revisão de permissões descritas em [DEPLOY.md](DEPLOY.md).
 
 ## Rodando
 
@@ -131,6 +132,8 @@ O roteiro da versão inicial de consulta está em [PUBLICACAO.md](PUBLICACAO.md)
 - A interface guarda o ID antes de executar a baixa. Se a resposta da criação se
   perder, recuperar pelo histórico sem criar outra operação ou limpar a pendência.
   Operações incertas, em processamento ou legadas `pendente` exigem conferência.
+  A conferência exige referência documental e responsável; não envia outra baixa.
+  Conclusão parcial não completa automaticamente a quantidade restante.
 - O lock PostgreSQL coordena apenas o PORTERO e exige Session pooler ou conexão
   direta. Saldo zero, resposta divergente ou falha após envio remoto não confirmam
   a baixa e não provocam reenvio automático. O saldo atual sozinho não comprova
@@ -158,8 +161,9 @@ O roteiro da versão inicial de consulta está em [PUBLICACAO.md](PUBLICACAO.md)
   um total apresentado como completo. Moedas externas disponíveis: BRL, USD e EUR.
   Cancelamento/estorno financeiro não repõe estoque. Resultados parciais por item
   permanecem visíveis, sem reenvio automático. Baixas antigas não viram vendas pagas.
-  Preferências não são salvas e notificações por e-mail não estão implementadas.
-  As consultas são atualizadas ao retornar à aba e após uma baixa confirmada;
-  não há atualização periódica ou em tempo real. As pendências e suas fontes
+  Notificações precisam de remetente, credencial e agendamento configurados, além
+  de validação real de entrega. Envios incertos não são repetidos automaticamente.
+  A atualização da tela não equivale ao monitoramento diário com a tela fechada.
+  Catálogos maiores podem exigir vários lotes de monitoramento. As pendências e suas fontes
   estão em [REQUISITOS.md](REQUISITOS.md).
   O build web requer acesso ao Google Fonts.

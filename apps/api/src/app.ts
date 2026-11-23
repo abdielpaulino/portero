@@ -11,6 +11,8 @@ import { createNuvemshopWebhookRouter, type WebhookOptions } from "./nuvemshop/w
 import { createSalesRouter, type SalesOptions } from "./sales/routes.js";
 import { createOrdersRouter, type OrdersOptions } from "./sales/orders-routes.js";
 import { createInvitationRouter, type InvitationRepository } from "./auth/invitations.js";
+import { createConferenceRouter, type ConferenceRepository } from "./operations/conferences.js";
+import { createSettingsRouter, createMonitorRouter, type SettingsOptions } from "./operations/settings.js";
 
 type AppOptions = {
   repository: AuthRepository;
@@ -29,12 +31,16 @@ type AppOptions = {
   sales?: SalesOptions;
   orders?: OrdersOptions;
   invitations?: InvitationRepository;
+  conferences?: ConferenceRepository;
+  settings?: SettingsOptions;
+  cronSecret?: string;
 };
 
 export function createApp({ repository, jwtSecret, secureCookies = false, webOrigin = "http://localhost:3000", nuvemshop, inventory, stock, history,
-  apiOrigin = "http://localhost:3001", requireOrigin = false, verifyInstallation, webhooks, sales, orders, invitations }: AppOptions) {
+  apiOrigin = "http://localhost:3001", requireOrigin = false, verifyInstallation, webhooks, sales, orders, invitations, conferences, settings, cronSecret }: AppOptions) {
   const app = express();
   if (webhooks) app.use("/webhooks/nuvemshop", createNuvemshopWebhookRouter(webhooks));
+  app.use("/internal", createMonitorRouter(cronSecret, settings));
   app.use(cors({ origin: webOrigin, credentials: true }));
   app.use((req, res, next) => {
     const installationRoute = req.path.startsWith("/auth/nuvemshop/");
@@ -63,7 +69,10 @@ export function createApp({ repository, jwtSecret, secureCookies = false, webOri
   });
 
   app.use("/auth/invitations", createInvitationRouter(invitations));
-  app.use("/auth", createAuthRouter(repository, jwtSecret, secureCookies, stock?.enabled, sales || orders ? { externas: !!sales, online: !!orders } : undefined));
+  app.use("/auth", createAuthRouter(repository, jwtSecret, secureCookies, stock?.enabled, sales || orders ? { externas: !!sales, online: !!orders } : undefined,
+    settings || conferences ? { configuracoes: !!settings, conferencias: !!conferences } : undefined));
+  app.use("/settings", createSettingsRouter(jwtSecret, settings));
+  app.use("/inventory/stock-decreases/:id/reviews", createConferenceRouter(jwtSecret, conferences));
   app.use("/sales/external", createSalesRouter(jwtSecret, sales));
   app.use("/sales/online-orders", createOrdersRouter(jwtSecret, orders));
   app.use("/inventory", createInventoryRouter(jwtSecret, inventory));

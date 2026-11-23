@@ -13,6 +13,10 @@ NODE_ENV=production
 STOCK_DECREASES_ENABLED=false
 EXTERNAL_SALES_ENABLED=false
 ONLINE_ORDERS_ENABLED=false
+INVITATIONS_ENABLED=false
+STOCK_CONFERENCES_ENABLED=false
+STORE_SETTINGS_ENABLED=false
+STOCK_NOTIFICATIONS_ENABLED=false
 ```
 
 Configurar também `DATABASE_URL` com SSL, `JWT_SECRET`, `WEB_ORIGIN`,
@@ -125,6 +129,10 @@ a migração nele. Não lê `.env` ou credenciais do Supabase. Exige resultado s
 falhas **e sem skip**; valida também as consultas de metadados antes/depois.
 O teste não modifica estoque remoto nem usa a loja real.
 
+O mesmo teste agora aplica também `20261122-operational-extension.sql` e cobre
+convites, conferências, preferências, alertas persistentes e exclusão pelas FKs.
+Exigir resultado sem falhas e sem skip antes da aplicação em uma instalação.
+
 Após aprovação desse teste, a equipe revisa/aplica somente
 `apps/api/sql/20261122-external-sales.sql` no banco de teste da instalação e
 executa `20261122-external-sales-review.sql`, selecionando o papel real da API.
@@ -154,6 +162,39 @@ dados comerciais já existentes**, exceção aprovada pelo responsável. As rota
 legadas também preservam a conferência de vínculo em baixas históricas quando
 a extensão existe. Sem as tabelas novas, só há a sondagem de metadados.
 Operações incertas não são reenviadas ou compensadas automaticamente.
+
+## Entrega operacional ao Felipe
+
+1. Validar as duas migrações no PostgreSQL descartável pelo comando acima.
+2. No banco de teste, revisar/aplicar `20261122-external-sales.sql` e depois
+   `20261122-operational-extension.sql`; executar os dois arquivos `*-review.sql`.
+   São independentes e cada arquivo é transacional. Conferir o papel SQL da API,
+   RLS e identidades. Não aplicar em produção como primeiro teste.
+3. Na demo conectada, habilitar as flags necessárias e validar convite, login,
+   catálogo, configurações, venda com vários itens, pagamento, baixa, repetição,
+   conferência e histórico. Não refazer OAuth ou inicialização nessa base.
+4. A equipe publica API e frontend com Node 22, origens exclusivas e flags
+   desativadas. Configura proteção contra abuso nos dois projetos, inclusive
+   `/api/auth/invitations/*` e `/auth/invitations/*`, e o atendimento à privacidade.
+5. Na instalação inédita de Felipe, com base separada, configurar os scopes
+   antes da primeira autorização (`write_products`, logística e `read_orders`
+   para os indicadores). Executar `installation:initialize` administrativamente
+   e conectar pelo OAuth. Não depende de uma conta interna anterior.
+6. Após migração/permissões e `INVITATIONS_ENABLED=true`, executar:
+   `npm.cmd run user:invite --workspace=@portero/api -- --env-file <arquivo-administrativo>`.
+   A equipe confirma loja/e-mail e compartilha o link confidencial. Felipe define
+   nome e senha e entra. `user:create-initial` permanece como alternativa.
+7. Habilitar vendas, pedidos, conferências e preferências após as verificações.
+   Configurar remetente/credencial e CRON_SECRET; validar uma entrega e o job antes
+   de ativar notificações. As baixas continuam false até autorização e primeira
+   operação pequena acompanhada, com saldo restante positivo. Conferir novamente
+   o inventário e o histórico; resultados incertos exigem evidência documental.
+
+Se precisar recuar, desativar todas as flags e republicar **esta versão compatível**,
+preservando tabelas, vendas, convites, evidências e preferências. Não retornar a
+backend anterior à extensão operacional: ele não conhece a ordem de exclusão.
+Não apagar dados nem executar SQL inicial. As configurações e os limites de
+monitoramento estão em DEPLOY.md; nenhuma publicação foi realizada neste trabalho.
 
 Referências: [Express na Vercel](https://vercel.com/docs/frameworks/backend/express)
 e [WAF Rate Limiting](https://vercel.com/docs/vercel-firewall/vercel-waf/rate-limiting).

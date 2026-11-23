@@ -65,7 +65,7 @@ A conexão PostgreSQL usa Session pooler 5432 ou conexão direta. A porta 6543 �
 recusada porque o lock da baixa ocupa a mesma sessão até a liberação. Conferir
 permissões do papel da API, RLS e capacidade do pool. Cada instância pode manter
 uma conexão operacional, outra de controle comercial e outra de webhooks.
-As quatro tabelas originais não são alteradas. A extensão comercial optativa e
+As quatro tabelas originais não são alteradas. A extensão comercial e
 sua ativação coordenada estão em [VENDAS.md](VENDAS.md); não aplicar SQLs abandonados.
 
 ## Vercel
@@ -214,6 +214,12 @@ não foram executados. Não usar SQL inicial, geração automática ou scripts a
 | Variável adicional da API | Configuração |
 | --- | --- |
 | `INVITATIONS_ENABLED=false` | Ativar após migração e permissões; tela pública somente por credencial de convite |
+| `STOCK_CONFERENCES_ENABLED=false` | Ativar conferências após validar as transações e o histórico de evidências |
+| `STORE_SETTINGS_ENABLED=false` | Ativar preferências persistentes e atualização da tela |
+| `STOCK_NOTIFICATIONS_ENABLED=false` | Ativar após configurar e testar o adaptador de envio |
+| `CRON_SECRET` | Segredo exclusivo de pelo menos 32 bytes; a Vercel o envia como Bearer ao agendamento |
+| `STOCK_ALERT_FROM_EMAIL` | Remetente verificado no adaptador Resend existente; usa `PRIVACY_FROM_EMAIL` como alternativa |
+| `RESEND_API_KEY` | Credencial do adaptador já existente, somente no backend |
 
 Permissões novas: SELECT/INSERT/UPDATE em convites e preferências;
 SELECT/INSERT em conferências; SELECT/INSERT/UPDATE em alertas; DELETE nos
@@ -230,7 +236,39 @@ login antes de solicitar novo convite. Compartilhar o link confidencial somente
 com o destinatário; não copiá-lo para issues ou logs. Senhas exigem 12 caracteres
 e até 72 bytes; nomes, senhas e segredo administrativo não entram na URL.
 
+Todas as contas internas autorizadas são administrativas nesta versão. A
+conferência registra responsável, documento/referência, justificativa e UUID.
+Não consulta nem altera estoque remoto. Comparação de saldo não é evidência.
+A integridade da documentação é conferida pelo administrador, não automaticamente
+pela API. Conclusão integral marca sincronizada; não aplicação marca rejeitada;
+parcial recebe `conferida_parcial`, sem enviar o restante; inconclusiva mantém o
+bloqueio. Uma parcial pode permitir novas operações explícitas da variante,
+mas não representa sincronização integral do item original. Não inserir dados
+de consumidores, tokens ou senhas nas justificativas.
+
+O agendamento preparado em `apps/api/vercel.json` chama
+`GET /internal/stock-monitor` diariamente às 12h UTC. No Hobby, pode ocorrer em
+qualquer momento dessa hora; não há promessa de tempo real. O job exige segredo
+quando habilitado. Desativado, responde explicitamente que não executou e não
+consulta a extensão. O botão de monitoramento usa sessão/origem e o mesmo controle
+de concorrência. A atualização de tela de 60 a 3600 segundos é independente.
+
+Cada execução trata até três páginas do catálogo e cinco envios, com cursor e
+estado persistidos. A interface informa lotes parciais e pendências.
+Um identificador persistido em `configuracoes_loja.monitor_id` impede que um
+processo substituído grave lotes ou inicie novos envios após perder seu lock.
+Os avisos ocorrem na primeira observação em ruptura e em nova entrada após recuperação acima do
+limite; saldo não controlado não gera alerta. Alterar o destinatário não reenvia
+episódios já enviados. Claim persistente antecede o POST de e-mail: em envio ou
+incerto não é retomado automaticamente, inclusive após reinício. A chave do
+provedor complementa a proteção, mas sua retenção de 24 horas não é tratada como
+garantia permanente. Aceitação do provedor não comprova chegada à caixa de entrada.
+
 O webhook apaga convites, conferências e preferências/alertas antes dos registros
 originais, mesmo com flags desativadas. Após esses dados existirem, retornar apenas
 a esta versão ou outra compatível com sua exclusão; desativar flags sem apagar
 tabelas. Os commits anteriores à extensão operacional não conhecem suas FKs.
+
+Referências: [OAuth](https://nuvemshop.dev/en-US/docs-api/authentication),
+[Cron Vercel](https://vercel.com/docs/cron-jobs/usage-and-pricing) e
+[idempotência Resend](https://resend.com/docs/dashboard/emails/idempotency-keys).

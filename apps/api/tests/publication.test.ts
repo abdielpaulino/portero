@@ -10,6 +10,7 @@ it("composição publicada com as três flags false usa somente o banco original
     JWT_SECRET: "segredo-ficticio-publicacao-com-mais-de-32-bytes", WEB_ORIGIN: "https://web.example.test", API_PUBLIC_URL: "https://api.example.test",
     NUVEMSHOP_STORE_ID: "123", NUVEMSHOP_USER_AGENT: "PORTERO (teste@example.test)", NUVEMSHOP_CLIENT_ID: "42", NUVEMSHOP_CLIENT_SECRET: "aplicativo-ficticio",
     STOCK_DECREASES_ENABLED: "false", EXTERNAL_SALES_ENABLED: "false", ONLINE_ORDERS_ENABLED: "false", VERCEL_ENV: "production",
+    INVITATIONS_ENABLED: "false", STOCK_CONFERENCES_ENABLED: "false", STORE_SETTINGS_ENABLED: "false", STOCK_NOTIFICATIONS_ENABLED: "false", CRON_SECRET: "", STOCK_ALERT_FROM_EMAIL: "",
     NUVEMSHOP_DEMO_STORE_ID: "", PORTERO_INSTALLATION_ID: "", INSTALLATION_ADMIN_TOKEN: "", RESEND_API_KEY: "", PRIVACY_FROM_EMAIL: "", PRIVACY_MERCHANT_EMAIL: "" };
   const previous = Object.fromEntries(Object.keys(values).map(name => [name, process.env[name]]));
   Object.assign(process.env, values);
@@ -18,7 +19,7 @@ it("composição publicada com as três flags false usa somente o banco original
   const query = async (config: string | { text: string; rowMode?: string }) => {
     const sql = typeof config === "string" ? config : config.text;
     queries.push(sql);
-    assert.doesNotMatch(sql, /(?:FROM|JOIN|INTO|UPDATE)\s+"?(?:vendas_externas|itens_venda_externa|movimentos_financeiros_venda)\b/i);
+    assert.doesNotMatch(sql, /(?:FROM|JOIN|INTO|UPDATE)\s+"?(?:vendas_externas|itens_venda_externa|movimentos_financeiros_venda|convites_conta|conferencias_baixa|configuracoes_loja|alertas_estoque)\b/i);
     if (sql.includes("to_regclass")) return { rows: [{ tabela: null }] };
     if (sql.includes("pg_try_advisory")) return { rows: [{ locked: true }] };
     if (sql.includes("pg_advisory_unlock")) return { rows: [{ unlocked: true }] };
@@ -57,6 +58,9 @@ it("composição publicada com as três flags false usa somente o banco original
     assert.equal(session.baixasHabilitadas, false); assert.equal(session.vendasExternasHabilitadas, undefined); assert.equal(session.pedidosOnlineHabilitados, undefined);
     for (const path of ["/inventory", "/inventory/stock-decreases", "/inventory/stock-decreases/1"]) assert.equal((await fetch(base + path, { headers })).status, 200, path);
     for (const path of ["/sales/external", "/sales/external/summary", "/sales/online-orders"]) assert.equal((await fetch(base + path, { headers })).status, 503, path);
+    for (const path of ["/settings", "/inventory/stock-decreases/1/reviews"]) assert.equal((await fetch(base + path, { headers })).status, 503, path);
+    assert.equal((await fetch(base + "/auth/invitations/inspect", { method: "POST", headers, body: "{}" })).status, 503);
+    assert.deepEqual(await (await fetch(base + "/internal/stock-monitor")).json(), { habilitado: false });
     for (const path of ["/inventory/stock-decreases", "/inventory/stock-decreases/1/execute", "/sales/external"]) assert.equal((await fetch(base + path, { method: "POST", headers, body: "{}" })).status, 503, path);
     const raw = JSON.stringify({ store_id: 123 });
     const result = await fetch(base + "/webhooks/nuvemshop/store-redact", { method: "POST", headers: { "Content-Type": "application/json", "x-linkedstore-hmac-sha256": createHmac("sha256", values.NUVEMSHOP_CLIENT_SECRET).update(raw).digest("hex") }, body: raw });

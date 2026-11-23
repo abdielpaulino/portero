@@ -26,6 +26,8 @@ const nextConfig: NextConfig = {
       },
       ...["login", "logout", "session"].map(action => ({ source: `/api/auth/${action}`, destination: `${api}/auth/${action}` })),
       { source: "/api/auth/invitations/:action", destination: `${api}/auth/invitations/:action` },
+      { source: "/api/settings", destination: `${api}/settings` },
+      { source: "/api/settings/monitor", destination: `${api}/settings/monitor` },
       { source: "/api/sales/external", destination: `${api}/sales/external` },
       { source: "/api/sales/external/:path*", destination: `${api}/sales/external/:path*` },
       { source: "/api/sales/online-orders", destination: `${api}/sales/online-orders` },

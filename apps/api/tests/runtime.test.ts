@@ -12,7 +12,14 @@ it("demo conectada funciona sem Redis nem credenciais administrativas do OAuth",
   assert.equal(runtime.stockEnabled, false);
   assert.equal(runtime.externalSalesEnabled, false);
   assert.equal(runtime.onlineOrdersEnabled, false);
+  assert.equal(runtime.invitationsEnabled, false); assert.equal(runtime.settingsEnabled, false); assert.equal(runtime.conferencesEnabled, false); assert.equal(runtime.notificationsEnabled, false);
   assert.equal(readRuntime({ ...local, STOCK_DECREASES_ENABLED: "true" }).stockEnabled, true);
+});
+it("notificações exigem flag explícita, preferências e segredo do agendamento; módulos não dependem da extensão comercial", () => {
+  assert.equal(readRuntime({ ...local, INVITATIONS_ENABLED: "true" }).invitationsEnabled, true);
+  assert.equal(readRuntime({ ...local, STORE_SETTINGS_ENABLED: "true" }).externalSalesEnabled, false);
+  assert.throws(() => readRuntime({ ...local, STOCK_NOTIFICATIONS_ENABLED: "true" }));
+  assert.throws(() => readRuntime({ ...local, STORE_SETTINGS_ENABLED: "true", STOCK_NOTIFICATIONS_ENABLED: "true", CRON_SECRET: "curto" }));
 });
 it("ativação comercial e leitura de pedidos são independentes e recusam flags inválidas", () => {
   assert.equal(readRuntime({ ...local, EXTERNAL_SALES_ENABLED: "true" }).onlineOrdersEnabled, false);
@@ -37,10 +44,4 @@ it("o IP local específico é aceito apenas em desenvolvimento, sem liberar outr
   assert.equal(readRuntime({ ...local, WEB_ORIGIN: "http://192.168.3.7:3000" }).webOrigin, "http://192.168.3.7:3000");
   assert.throws(() => readRuntime({ ...local, WEB_ORIGIN: "http://192.168.3.8:3000" }));
   assert.throws(() => readRuntime({ ...production, WEB_ORIGIN: "http://192.168.3.7:3000" }));
-});
-
-it("convites exigem ativação explícita e recusam flags inválidas", () => {
-  assert.equal(readRuntime(local).invitationsEnabled, false);
-  assert.equal(readRuntime({ ...local, INVITATIONS_ENABLED: "true" }).invitationsEnabled, true);
-  assert.throws(() => readRuntime({ ...local, INVITATIONS_ENABLED: "sim" }));
 });

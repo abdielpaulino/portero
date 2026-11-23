@@ -144,7 +144,7 @@ export function createSalesRepository(database: Pool, control: Pool, storeId: st
         const lock = await client.query("SELECT pg_try_advisory_xact_lock($1::int, hashtext($2)) AS locked", [auth.lojaId, item.varianteId]);
         if (!lock.rows[0]?.locked) throw new NuvemshopError(409, "Variante em processamento. Consulte a venda.");
         const pending = await client.query(`SELECT id FROM baixas_estoque WHERE loja_id = $1 AND variant_id = $2
-          AND status_sincronizacao NOT IN ('sincronizada','rejeitada') LIMIT 1`, [auth.lojaId, item.varianteId]);
+          AND status_sincronizacao NOT IN ('sincronizada','rejeitada','conferida_parcial') LIMIT 1`, [auth.lojaId, item.varianteId]);
         if (pending.rows.length) throw new NuvemshopError(409, "A variante tem outra operação pendente. A venda permanece registrada.");
         const operation = await client.query(`INSERT INTO baixas_estoque (loja_id,usuario_id,produto_id,variant_id,sku,quantidade_baixada,status_sincronizacao)
           VALUES ($1,$2,$3,$4,$5,$6,'registrada') RETURNING id`, [auth.lojaId, auth.usuarioId, item.produtoId, item.varianteId, item.sku, item.quantidade]);
@@ -200,7 +200,7 @@ export function createSalesRepository(database: Pool, control: Pool, storeId: st
         COALESCE(f.recebimentos,'0.00') AS recebimentos,COALESCE(f.estornos,'0.00') AS estornos,COALESCE(f."recebidoLiquido",'0.00') AS "recebidoLiquido"
         FROM comercial c FULL JOIN financeiro f ON c.moeda=f.moeda AND c.canal=f.canal ORDER BY moeda,canal`, [auth.lojaId, period.inicio, period.fim]);
       const stock = await database.query(`SELECT count(*) FILTER (WHERE b.id IS NULL OR b.status_sincronizacao <> 'sincronizada') AS pendentes,
-        count(*) FILTER (WHERE b.status_sincronizacao NOT IN ('registrada','sincronizada','rejeitada')) AS incertas
+        count(*) FILTER (WHERE b.status_sincronizacao NOT IN ('registrada','sincronizada','rejeitada','conferida_parcial')) AS incertas
         FROM itens_venda_externa i JOIN vendas_externas v ON v.id=i.venda_id LEFT JOIN baixas_estoque b ON b.id=i.baixa_id
         WHERE v.loja_id=$1 AND v.situacao='confirmada' AND v.vendida_em >= $2 AND v.vendida_em < $3`, [auth.lojaId, period.inicio, period.fim]);
       return { ...period, totais: result.rows.map(row => ({ ...row, vendas: Number(row.vendas), pagamentosPendentes: Number(row.pagamentosPendentes) })),
