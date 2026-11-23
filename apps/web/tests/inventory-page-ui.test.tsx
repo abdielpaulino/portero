@@ -39,6 +39,26 @@ after(async () => {
   await browser.happyDOM.close();
 });
 
+for (const enabled of [true, false, undefined]) it(`navegação abre vendas externas com disponibilidade ${String(enabled)}, preservando a baixa simples`, async () => {
+  const paths: string[] = [], reads: string[] = [];
+  globalThis.fetch = async (url, init) => {
+    assert.equal(init?.method ?? "GET", "GET"); reads.push(String(url));
+    if (url === "/api/auth/session") return Response.json({ usuarioId: 1, loja: { id: 10, nomeLoja: "Demo" }, baixasHabilitadas: true, ...(enabled === undefined ? {} : { vendasExternasHabilitadas: enabled }) });
+    assert.equal(url, "/api/inventory?page=1"); return Response.json({ page: 1, nextPage: null, items: [{ id: "100:101", produtoId: "100", varianteId: "101", nome: "Luva", variante: "Azul", sku: null, preco: 10, quantidade: 8, ruptura: false }] });
+  };
+  const container = document.createElement("div"); document.body.append(container); const root = createRoot(container);
+  const router = { bfcacheId: "sales-navigation", back() {}, forward() {}, refresh() {}, push(path: string) { paths.push(path); }, replace() {}, prefetch() {} };
+  try {
+    await act(() => root.render(<AppRouterContext.Provider value={router}><InventoryPage /></AppRouterContext.Provider>));
+    const link = container.querySelector<HTMLAnchorElement>('a[href="/sales"]'); assert.ok(link);
+    assert.equal(link.textContent, enabled ? "Registrar venda externa" : "Vendas externas");
+    const stock = container.querySelector<HTMLButtonElement>('button[aria-label="Dar baixa em Luva, variante Azul"]'); assert.ok(stock); assert.equal(stock.disabled, false);
+    const tab = [...container.querySelectorAll<HTMLButtonElement>("nav button")].find(button => button.textContent === "Vendas"); assert.ok(tab);
+    await act(() => tab.click()); assert.deepEqual(paths, ["/sales"]);
+    assert.deepEqual(reads.sort(), ["/api/auth/session", "/api/inventory?page=1"].sort());
+  } finally { await act(() => root.unmount()); container.remove(); }
+});
+
 it("preserva o estoque mais recente quando duas baixas confirmadas recebem consultas fora de ordem", async () => {
   const item: Item = { id: "100:101", produtoId: "100", varianteId: "101", nome: "Luva", variante: "Azul",
     sku: "LUVA-A", preco: 100, quantidade: 8, ruptura: false };

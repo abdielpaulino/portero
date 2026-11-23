@@ -20,7 +20,7 @@ export default function InventoryPage() {
   const [baixasEmAndamento, setBaixasEmAndamento] = useState(0);
   const [aviso, setAviso] = useState("");
   const [baixasHabilitadas, setBaixasHabilitadas] = useState(false);
-  const [vendasHabilitadas, setVendasHabilitadas] = useState(false);
+  const [vendasHabilitadas, setVendasHabilitadas] = useState<boolean | null>(null);
   const [settingsEnabled, setSettingsEnabled] = useState(false);
   const { preferences, error: preferencesError } = usePreferences(settingsEnabled);
   const refreshGeneration = useRef(0);
@@ -98,7 +98,9 @@ export default function InventoryPage() {
         {preferences && <p>Limite de ruptura: {preferences.limiteRuptura}. Atualização da tela: {preferences.atualizacaoAutomatica ? `${preferences.intervaloSegundos}s` : "manual"}.</p>}
         {preferencesError && <p role="alert">{preferencesError}</p>}
         <Link href="/history">Histórico de baixas</Link>
-        {vendasHabilitadas && <><Link href="/sales">Registrar venda externa</Link><p>Dar baixa registra somente estoque. Use a venda externa para registrar canal, valores e pagamento.</p></>}
+        <Link href="/sales">{vendasHabilitadas ? "Registrar venda externa" : "Vendas externas"}</Link>
+        <p>Dar baixa registra somente estoque. Use a venda externa para registrar canal, valores e pagamento.</p>
+        {vendasHabilitadas === false && <p>Registro de vendas externas ainda não habilitado nesta instalação. Consulte a disponibilidade em Vendas.</p>}
         <button type="button" className={styles.filterPill} disabled={loading || baixasEmAndamento > 0}
           onClick={atualizarConsulta}>Atualizar estoque</button>
       </div>

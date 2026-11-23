@@ -19,6 +19,7 @@ export default function SalesPage() {
   const [received, setReceived] = useState("0.00"), [receivedDate, setReceivedDate] = useState("");
   const [busy, setBusy] = useState(false), [error, setError] = useState(""), [message, setMessage] = useState("");
   const [page, setPage] = useState(1), [more, setMore] = useState(false), [invalid, setInvalid] = useState(false);
+  const [loading, setLoading] = useState(true), [ready, setReady] = useState(false), [loadRevision, setLoadRevision] = useState(0);
   const submitting = useRef(false);
   const storageKey = session ? `portero:venda:${session.loja.id}:${session.usuarioId}` : null;
   const pending = usePending(storageKey);
@@ -26,12 +27,14 @@ export default function SalesPage() {
     const controller = new AbortController();
     void carregarSessao(undefined, { signal: controller.signal }).then(async value => {
       if (controller.signal.aborted) return; setSession(value);
-      if (!value?.vendasExternasHabilitadas) return;
+      if (!value) throw new Error("Sessão indisponível. Entre novamente para consultar vendas externas.");
+      if (!value.vendasExternasHabilitadas) { setReady(true); return; }
       const [items, history] = await Promise.all([carregarCatalogo(controller.signal), listSales(1, controller.signal)]);
-      if (!controller.signal.aborted) { setCatalog(items); setSales(history.items); setMore(history.hasMore); }
-    }).catch((failure: unknown) => { if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : "Não foi possível carregar as vendas."); });
+      if (!controller.signal.aborted) { setCatalog(items); setSales(history.items); setMore(history.hasMore); setReady(true); }
+    }).catch((failure: unknown) => { if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : "Não foi possível carregar as vendas."); })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
     return () => controller.abort();
-  }, []);
+  }, [loadRevision]);
   function update(sale: ExternalSale) { setSelected(sale); setSales(current => [sale, ...current.filter(item => item.id !== sale.id)]); }
   async function submit(event: React.FormEvent) {
     event.preventDefault(); if (!session || !storageKey || submitting.current) return;
@@ -93,7 +96,14 @@ export default function SalesPage() {
     <div className={styles.header}><h1 className={styles.title}>Vendas externas</h1><p className={styles.subtitle}>Registro financeiro no PORTERO; na Nuvemshop, somente estoque.</p>
       <Link href="/inventory">Inventário</Link>{" · "}<Link href="/history">Histórico de baixas</Link>{" · "}<Link href="/dashboard">Dashboard</Link></div>
     {error && <p role="alert">{error}</p>}{message && <p role="status">{message}</p>}
-    {!session?.vendasExternasHabilitadas ? <p>Registro comercial ainda não ativado. O inventário e o histórico de baixas continuam disponíveis.</p> : <>
+    {loading ? <p role="status">Verificando disponibilidade e carregando vendas externas...</p> : !ready ? <div>
+      <p>Não foi possível abrir o registro comercial. Esta consulta não cria vendas nem executa baixas.</p>
+      <button type="button" onClick={() => { setError(""); setLoading(true); setLoadRevision(current => current + 1); }}>Tentar carregar novamente</button>
+      {!session && <Link href="/login">Entrar novamente</Link>}
+    </div> : !session?.vendasExternasHabilitadas ? <div>
+      <p>Registro comercial ainda não ativado nesta instalação. Solicite à administração a conferência e habilitação do recurso. O inventário e o histórico de baixas continuam disponíveis.</p>
+      <button type="button" onClick={() => { setLoading(true); setReady(false); setLoadRevision(current => current + 1); }}>Conferir disponibilidade novamente</button>
+    </div> : <>
       <form onSubmit={submit} className={styles.list}>
         <fieldset disabled={busy || !!pending || !!selected}>
           <legend>Registrar venda</legend>

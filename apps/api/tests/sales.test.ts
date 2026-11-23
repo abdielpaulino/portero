@@ -7,14 +7,14 @@ import { createProductsClient } from "../src/nuvemshop/products.js";
 import { createStockClient } from "../src/nuvemshop/stock.js";
 import { inputBody, key, salesFixture } from "./sales-fixture.js";
 
-async function fixture() {
+async function fixture({ externalEnabled = true, stockEnabled = true } = {}) {
   const db = salesFixture(); const methods: string[] = []; let writes = 0;
   const product = { id: 100, name: { pt: "Luva" }, images: [], variants: [101, 102].map(id => ({ id, product_id: 100, values: [], sku: String(id), price: "9999.00", stock: 8, stock_management: true })) };
   let secondFails = false;
   let paused: Promise<void> | null = null;
   let entered!: () => void;
   const remoteEntered = new Promise<void>(resolve => { entered = resolve; });
-  const stock = { storeId: "123", enabled: true, repository: db.stock, client: createStockClient("PORTERO (test@example.test)", async (url, init) => {
+  const stock = { storeId: "123", enabled: stockEnabled, repository: db.stock, client: createStockClient("PORTERO (test@example.test)", async (url, init) => {
     methods.push(init!.method!);
     if (paused) { entered(); await paused; }
     const id = init!.method === "POST" ? JSON.parse(init!.body as string).id : Number(String(url).split("/").at(-1));
@@ -25,7 +25,7 @@ async function fixture() {
   const secret = "segredo-comercial-local-com-mais-de-32-bytes";
   const products = createProductsClient("PORTERO (test@example.test)", async (_url, init) => { methods.push(init!.method!); return Response.json(product); });
   const server = createApp({ jwtSecret: secret, repository: { async buscarUsuariosPorEmail() { return []; }, async listarLojas() { return [{ id: 10, nomeLoja: "Demo" }]; } },
-    stock, sales: { repository: db.repository, products, stock } }).listen(0, "127.0.0.1");
+    stock, sales: externalEnabled ? { repository: db.repository, products, stock } : undefined }).listen(0, "127.0.0.1");
   await once(server, "listening"); const address = server.address(); assert.ok(address && typeof address !== "string");
   const port = address.port;
   const cookies = await Promise.all([1, 2].map(async usuarioId => `portero_session=${await createSessionService(secret).issue({ usuarioId, lojaId: 10 })}`));
@@ -34,8 +34,20 @@ async function fixture() {
       headers: { ...(actor < 0 ? {} : { Cookie: cookies[actor] }), "Content-Type": "application/json", "Idempotency-Key": requestKey }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
     const text = await response.text(); assert.ok(!text.includes("token-ficticio")); return { status: response.status, data: JSON.parse(text) };
   }
-  return { db, methods, request, stock, remoteEntered, get writes() { return writes; }, failSecond() { secondFails = true; }, pause(value: Promise<void> | null) { paused = value; }, async close() { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); } };
+  return { db, methods, request, stock, remoteEntered, async session() { const response = await fetch(`http://127.0.0.1:${port}/auth/session`, { headers: { Cookie: cookies[0] } }); assert.equal(response.status, 200); return response.json(); }, get writes() { return writes; }, failSecond() { secondFails = true; }, pause(value: Promise<void> | null) { paused = value; }, async close() { server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); } };
 }
+
+it("sessão informa a disponibilidade comercial independentemente da permissão de baixa", async () => {
+  for (const externalEnabled of [true, false]) {
+    const f = await fixture({ externalEnabled, stockEnabled: false });
+    try {
+      const session = await f.session(); assert.equal(session.baixasHabilitadas, false);
+      assert.equal(session.vendasExternasHabilitadas, externalEnabled ? true : undefined);
+      assert.equal(f.methods.length, 0); assert.equal(f.db.sales.length, 0);
+      if (!externalEnabled) assert.equal((await f.request()).status, 503);
+    } finally { await f.close(); }
+  }
+});
 
 it("registro comercial preserva preços informados, não envia baixas nem cria pedidos e é idempotente", async () => {
   const f = await fixture(); try {

@@ -26,6 +26,32 @@ para eliminar repetições nas páginas consultadas. Não se cadastram consumido
 
 ## Fluxo e garantias
 
+A interface está em `/sales`, acessível pela aba **Vendas**, pelo inventário e
+pelo histórico de baixas. A baixa simples continua disponível no inventário e
+registra somente estoque, sem canal ou valores comerciais.
+
+`EXTERNAL_SALES_ENABLED=true`, somente na API, habilita o registro comercial.
+`GET /auth/session` informa `vendasExternasHabilitadas`; o navegador consulta
+`/api/auth/session` pelo encaminhamento do Next.js. Campo ausente ou false mantém
+o formulário bloqueado. A disponibilidade informa configuração, não comprova
+migração aplicada. Falha ao carregar sessão, catálogo ou histórico impede abrir
+o formulário e oferece nova consulta, sem criar vendas ou baixas.
+
+A migração comercial é necessária para esse formulário. A operacional atende
+convites, conferências, preferências e alertas; não é pré-requisito para registrar
+uma venda com a conta existente. Cada flag deve ser ativada somente após a revisão
+de sua migração e permissões. Reiniciar a API após mudar suas variáveis; conferir
+`API_URL` e reiniciar/recompilar o frontend se o destino da API mudar.
+
+Antes de aplicar qualquer migração, a equipe executa os arquivos comerciais e
+operacionais `*-review.sql`, somente de leitura, no destino correspondente. A
+comercial deve comprovar `vendas_externas`, `itens_venda_externa` e
+`movimentos_financeiros_venda`; a operacional, `convites_conta`,
+`conferencias_baixa`, `configuracoes_loja` e `alertas_estoque`. Conferir também
+colunas, constraints, índices, RLS e permissões. Código e arquivos SQL presentes
+no Git não comprovam aplicação no banco; não reaplicar scripts sobre objetos
+existentes sem essa conferência.
+
 1. O navegador salva UUID e corpo antes de registrar a venda.
 2. O servidor confere sessão, vínculo e variantes. Venda, itens e recebimento
    inicial ficam na mesma transação local. Nenhum estoque é alterado nessa etapa.
