@@ -1,0 +1,14 @@
+.container { display: flex; flex-direction: column; gap: 0.6rem; min-width: 0; }
+.figure { margin: 0; padding: 0.8rem 0; border-top: 1px solid var(--border-color); }
+.figure figcaption { font-weight: 700; }
+.figure svg { display: block; width: 100%; height: auto; }
+.legend { display: flex; flex-wrap: wrap; gap: 0.8rem; font-size: 0.8rem; margin-top: 0.5rem; }
+.externalLabel { color: var(--purple); }
+.onlineLabel { color: #2563eb; }
+.axis { fill: none; stroke: var(--border-color); stroke-width: 1; }
+.external { fill: none; stroke: var(--purple); stroke-width: 2; }
+.online { fill: none; stroke: #2563eb; stroke-width: 2; }
+.tick { fill: currentColor; font-size: 11px; }
+.tableWrap { overflow-x: auto; }
+.tableWrap table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+.tableWrap th, .tableWrap td { padding: 0.4rem; text-align: left; border-bottom: 1px solid var(--border-color); }

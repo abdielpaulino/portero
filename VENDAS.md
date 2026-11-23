@@ -71,6 +71,13 @@ no histórico de baixas. Cancelar financeiramente a venda não assume essa decis
 - Recebido online fica indisponível: os dados consultados não comprovam movimentos
   e estornos datados suficientes. Não estimar pelo status `paid` ou total do pedido.
 
+O gráfico diário segue essas mesmas datas e regras, com séries separadas de
+externas confirmadas e valor dos pedidos online não cancelados. Cada moeda tem
+seu próprio gráfico; não há soma entre moedas ou com recebimentos. A série externa
+abrange todos os registros locais do mês. A online abrange apenas as páginas
+consultadas, identificando paginação pendente e pedidos com dados incompletos.
+Ausência de dados de uma origem não é apresentada como valor zero.
+
 ## Aplicação e ativação no banco de teste
 
 1. Revisar [20261122-external-sales.sql](apps/api/sql/20261122-external-sales.sql)

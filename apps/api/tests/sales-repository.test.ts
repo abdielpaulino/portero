@@ -32,8 +32,8 @@ function fixture() {
     if (text.includes("FROM baixas_estoque WHERE")) return { rows: state.pending ? [{ id: 99 }] : [] };
     if (text.startsWith("INSERT INTO baixas_estoque")) return { rows: [{ id: 7 }] };
     if (text.startsWith("UPDATE")) return { rows: [], rowCount: state.rowCount };
-    if (text.includes("AT TIME ZONE")) return { rows: [{ inicio: "2026-11-01T03:00:00Z", fim: "2026-12-01T03:00:00Z" }] };
-    if (text.startsWith("WITH comercial")) return { rows: [{ moeda: "BRL", canal: "WhatsApp", vendas: "1", pagamentosPendentes: "1", valorVendido: "50.00", recebimentos: "5.00", estornos: "10.00", recebidoLiquido: "-5.00" }] };
+    if (text.startsWith("SELECT $1::date")) return { rows: [{ inicio: "2026-11-01T03:00:00Z", fim: "2026-12-01T03:00:00Z" }] };
+    if (text.startsWith("WITH comercial")) return { rows: [{ totais: [{ moeda: "BRL", canal: "WhatsApp", vendas: "1", pagamentosPendentes: "1", valorVendido: "50.00", recebimentos: "5.00", estornos: "10.00", recebidoLiquido: "-5.00" }], diario: [{ dia: "2026-11-01", moeda: "BRL", valor: "50.00" }] }] };
     if (text.includes("AS pendentes")) return { rows: [{ pendentes: "2", incertas: "1" }] };
     return { rows: [] };
   }
@@ -132,6 +132,17 @@ it("indicadores mensais usam fuso no PostgreSQL, datas distintas e não duplicam
   assert.match(query.text, /situacao = 'confirmada'/); assert.ok(!query.text.includes("itens_venda_externa"));
   assert.match(query.text, /ELSE -m.valor/);
   await assert.rejects(f.repository.period("2026-13"), { status: 400 });
+});
+it("série comercial diária usa vendas confirmadas, loja e mesma leitura dos totais mensais, sem somar recebimentos", async () => {
+  const f = fixture(); const result = await f.repository.summary(auth, "2026-11");
+  assert.deepEqual(result.diario, [{ dia: "2026-11-01", moeda: "BRL", valor: "50.00" }]);
+  const query = f.queries.find(query => query.text.startsWith("WITH comercial"))!;
+  const daily = query.text.slice(query.text.indexOf("diario AS ("), query.text.indexOf("resumo AS ("));
+  assert.match(daily, /vendida_em AT TIME ZONE 'America\/Sao_Paulo'/); assert.match(daily, /sum\(total\)::numeric\(30,2\)::text/);
+  assert.match(daily, /loja_id=\$1 AND situacao='confirmada'/); assert.match(daily, /vendida_em >= \$2 AND vendida_em < \$3/);
+  assert.ok(!/movimentos_financeiros|baixas_estoque|itens_venda/.test(daily));
+  assert.deepEqual(query.values, [10, "2026-11-01T03:00:00.000Z", "2026-12-01T03:00:00.000Z"]);
+  assert.equal(f.queries.filter(query => query.text.includes("diario AS (")).length, 1);
 });
 it("migração é incremental, sem conversão de baixas antigas, e mantém RLS nos novos objetos", () => {
   const sql = readFileSync(new URL("../sql/20261122-external-sales.sql", import.meta.url), "utf8");

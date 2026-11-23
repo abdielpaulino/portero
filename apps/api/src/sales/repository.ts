@@ -6,7 +6,7 @@ import { cents, hash, money, type FinancialEvent, type FinancialInput, type Prep
 
 type Queryable = Pick<PoolClient, "query">;
 export type Period = { periodo: string; fuso: string; inicio: string; fim: string };
-export type ExternalSummary = Period & { totais: { moeda: string; canal: string; vendas: number; valorVendido: string; recebimentos: string; estornos: string; recebidoLiquido: string; pagamentosPendentes: number }[]; estoque: { pendentes: number; incertas: number } };
+export type ExternalSummary = Period & { totais: { moeda: string; canal: string; vendas: number; valorVendido: string; recebimentos: string; estornos: string; recebidoLiquido: string; pagamentosPendentes: number }[]; estoque: { pendentes: number; incertas: number }; diario?: { dia: string; moeda: string; valor: string }[] };
 export interface SalesRepository {
   store(auth: AuthContext): Promise<StoreCredentials>;
   period(month: string): Promise<Period>;
@@ -184,7 +184,7 @@ export function createSalesRepository(database: Pool, control: Pool, storeId: st
     },
     async summary(auth, month) {
       await store(auth); const period = await repository.period(month);
-      const result = await database.query(`WITH comercial AS (
+      const result = await database.query<{ totais: ExternalSummary["totais"]; diario: NonNullable<ExternalSummary["diario"]> }>(`WITH comercial AS (
         SELECT moeda, canal, count(*) FILTER (WHERE situacao = 'confirmada') AS vendas,
           COALESCE(sum(total) FILTER (WHERE situacao = 'confirmada'),0)::numeric(30,2)::text AS "valorVendido",
           count(*) FILTER (WHERE situacao = 'confirmada' AND valor_recebido - valor_estornado < total) AS "pagamentosPendentes"
@@ -195,16 +195,22 @@ export function createSalesRepository(database: Pool, control: Pool, storeId: st
           sum(CASE WHEN m.tipo = 'recebimento' THEN m.valor ELSE -m.valor END)::numeric(30,2)::text AS "recebidoLiquido"
         FROM movimentos_financeiros_venda m JOIN vendas_externas v ON v.id = m.venda_id
         WHERE v.loja_id = $1 AND m.ocorrido_em >= $2 AND m.ocorrido_em < $3 GROUP BY v.moeda,v.canal
-      ) SELECT COALESCE(c.moeda,f.moeda) AS moeda,COALESCE(c.canal,f.canal) AS canal,COALESCE(c.vendas,0) AS vendas,
+      ), diario AS (
+        SELECT to_char(vendida_em AT TIME ZONE 'America/Sao_Paulo','YYYY-MM-DD') AS dia,moeda,sum(total)::numeric(30,2)::text AS valor
+        FROM vendas_externas WHERE loja_id=$1 AND situacao='confirmada' AND vendida_em >= $2 AND vendida_em < $3
+        GROUP BY 1,2
+      ), resumo AS (SELECT COALESCE(c.moeda,f.moeda) AS moeda,COALESCE(c.canal,f.canal) AS canal,COALESCE(c.vendas,0) AS vendas,
         COALESCE(c."valorVendido",'0.00') AS "valorVendido", COALESCE(c."pagamentosPendentes",0) AS "pagamentosPendentes",
         COALESCE(f.recebimentos,'0.00') AS recebimentos,COALESCE(f.estornos,'0.00') AS estornos,COALESCE(f."recebidoLiquido",'0.00') AS "recebidoLiquido"
-        FROM comercial c FULL JOIN financeiro f ON c.moeda=f.moeda AND c.canal=f.canal ORDER BY moeda,canal`, [auth.lojaId, period.inicio, period.fim]);
+        FROM comercial c FULL JOIN financeiro f ON c.moeda=f.moeda AND c.canal=f.canal)
+        SELECT COALESCE((SELECT jsonb_agg(r ORDER BY r.moeda,r.canal) FROM resumo r),'[]'::jsonb) AS totais,
+          COALESCE((SELECT jsonb_agg(d ORDER BY d.dia,d.moeda) FROM diario d),'[]'::jsonb) AS diario`, [auth.lojaId, period.inicio, period.fim]);
       const stock = await database.query(`SELECT count(*) FILTER (WHERE b.id IS NULL OR b.status_sincronizacao <> 'sincronizada') AS pendentes,
         count(*) FILTER (WHERE b.status_sincronizacao NOT IN ('registrada','sincronizada','rejeitada','conferida_parcial')) AS incertas
         FROM itens_venda_externa i JOIN vendas_externas v ON v.id=i.venda_id LEFT JOIN baixas_estoque b ON b.id=i.baixa_id
         WHERE v.loja_id=$1 AND v.situacao='confirmada' AND v.vendida_em >= $2 AND v.vendida_em < $3`, [auth.lojaId, period.inicio, period.fim]);
-      return { ...period, totais: result.rows.map(row => ({ ...row, vendas: Number(row.vendas), pagamentosPendentes: Number(row.pagamentosPendentes) })),
-        estoque: { pendentes: Number(stock.rows[0].pendentes), incertas: Number(stock.rows[0].incertas) } };
+      return { ...period, totais: (result.rows[0]?.totais ?? []).map(row => ({ ...row, vendas: Number(row.vendas), pagamentosPendentes: Number(row.pagamentosPendentes) })),
+        diario: result.rows[0]?.diario ?? [], estoque: { pendentes: Number(stock.rows[0].pendentes), incertas: Number(stock.rows[0].incertas) } };
     },
   };
   return repository;

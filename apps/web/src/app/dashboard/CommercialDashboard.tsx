@@ -4,6 +4,7 @@ import Link from "next/link";
 import { carregarSessao, type Session } from "../auth/session";
 import { fetchOrders, fetchSummary, formatMoney, monthNow, onlineTotals, type OnlineOrder, type Summary } from "../sales/data";
 import styles from "./dashboard.module.css";
+import DailyCommercialChart from "./DailyCommercialChart";
 
 export default function CommercialDashboard({ revision = 0 }: { revision?: number }) {
   const [session, setSession] = useState<Session | null>(null), [period, setPeriod] = useState(monthNow);
@@ -45,6 +46,8 @@ export default function CommercialDashboard({ revision = 0 }: { revision?: numbe
       setExternal(null); setOrders([]); setPage(0); setMore(false); setExternalError(""); setOnlineError(""); setPeriod(event.target.value);
     }} /></label>
     <p className={styles.cardHint}>America/Sao_Paulo · valores sem frete · moedas separadas. Valor vendido e valor dos pedidos não representam dinheiro recebido.</p>
+    <DailyCommercialChart period={period} external={external} orders={orders} onlineLoaded={page > 0} onlinePartial={more || !!onlineError}
+      externalEnabled={!!session.vendasExternasHabilitadas} onlineEnabled={!!session.pedidosOnlineHabilitados} page={page} />
     {session.vendasExternasHabilitadas && <div>
       <h3>Vendas externas — PORTERO</h3><Link href="/sales">Registrar venda e consultar histórico comercial</Link>
       {externalError && <p role="alert">{externalError}</p>}

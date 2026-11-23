@@ -111,6 +111,21 @@ it("dashboard distingue pedidos pendentes de recebido e identifica abrangência 
     assert.match(view.container.textContent!, /Totais parciais/); assert.match(view.container.textContent!, /Recebido online no mês indisponível/);
   } finally { await view.close(); }
 });
+it("gráfico diário separa origens e moedas e sinaliza páginas online ainda não consultadas", async () => {
+  globalThis.fetch = async url => {
+    if (url === "/api/auth/session") return Response.json(session);
+    const period = new URL(`http://localhost${url}`).searchParams.get("periodo")!;
+    if (String(url).includes("external/summary")) return Response.json({ periodo: period, fuso: "America/Sao_Paulo", totais: [], estoque: { pendentes: 0, incertas: 0 }, diario: [{ dia: `${period}-01`, moeda: "BRL", valor: "10.00" }] });
+    return Response.json({ periodo: period, page: 1, hasMore: true, items: [{ id: "1", storeId: "123", numero: "1", origem: "nuvemshop", canal: "loja_online", criadoEm: `${period}-01T03:00:00Z`, status: "open", pagamento: "pending", moeda: "USD", valorProdutos: "20.00", totalPedido: "99.00" }] });
+  };
+  const view = await mount(<Dashboard />);
+  try {
+    const chart = view.container.querySelector('[aria-label="Valor comercial diário"]')!; assert.ok(chart);
+    assert.match(chart.textContent!, /Não representa valor recebido/); assert.match(chart.textContent!, /valores parciais/);
+    assert.match(chart.textContent!, /Valor comercial diário · BRL/); assert.match(chart.textContent!, /Valor comercial diário · USD/);
+    assert.equal(chart.querySelectorAll("svg").length, 2); assert.match(chart.textContent!, /BRL 10,00/); assert.match(chart.textContent!, /USD 20,00/); assert.doesNotMatch(chart.textContent!, /99,00/);
+  } finally { await view.close(); }
+});
 it("flags desativadas não consultam a extensão nem impedem o inventário existente", async () => {
   const calls: string[] = [];
   globalThis.fetch = async url => { calls.push(String(url)); return Response.json({ usuarioId: 1, loja: session.loja }); };

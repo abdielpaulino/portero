@@ -34,6 +34,8 @@ Professor orientador: Hyan Dias Tavares
   informados pelo administrador, sem processar pagamentos.
 - Indicadores mensais separados de vendas externas e pedidos online, com moedas
   separadas e distinção entre valor dos pedidos e dinheiro recebido.
+- Gráfico de valor comercial por dia, com séries por origem e moeda e indicação
+  da abrangência consultada, sem representar recebimentos.
 - Webhooks assinados de suspensão, desinstalação e privacidade da integração.
 - Preferências por loja, limite de ruptura e atualização periódica enquanto a tela
   estiver visível. Monitoramento diário e alertas usam configuração própria.
