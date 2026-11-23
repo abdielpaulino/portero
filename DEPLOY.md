@@ -1,5 +1,8 @@
 # Publicação e operação acompanhada
 
+Para a publicação inicial com as três flags desativadas, seguir
+[PUBLICACAO.md](PUBLICACAO.md): verificações, bloqueios, migração e retorno seguro.
+
 Arquitetura: frontend e API em deploys Vercel separados, PostgreSQL no Supabase
 e integração com uma loja Nuvemshop. Redis não é utilizado. A estrutura original
 das quatro tabelas é preservada. Este documento não comprova publicação ou teste real.
@@ -47,6 +50,8 @@ Não disponibilizar credenciais reais em Preview nem em variáveis `NEXT_PUBLIC_
 | API | `NUVEMSHOP_CLIENT_ID` | ID do aplicativo, obrigatório para webhooks em produção |
 | API | `NUVEMSHOP_CLIENT_SECRET` | Segredo que valida a assinatura dos webhooks |
 | API | `STOCK_DECREASES_ENABLED=false` | Bloqueio até validação e liberação acompanhada |
+| API | `EXTERNAL_SALES_ENABLED=false` | Ativar somente após migração incremental e permissões conferidas no banco de teste |
+| API | `ONLINE_ORDERS_ENABLED=false` | Leitura de pedidos online; exige `read_orders` |
 | Frontend | `API_URL` | Origem HTTPS da API, necessária no build e na execução |
 
 `PORTERO_INSTALLATION_ID` identifica o OAuth e também o adaptador opcional de
@@ -59,8 +64,9 @@ Produção não aceita `NUVEMSHOP_DEMO_STORE_ID`. `PORT` é apenas local.
 A conexão PostgreSQL usa Session pooler 5432 ou conexão direta. A porta 6543 é
 recusada porque o lock da baixa ocupa a mesma sessão até a liberação. Conferir
 permissões do papel da API, RLS e capacidade do pool. Cada instância pode manter
-uma conexão operacional e outra de webhooks.
-As quatro tabelas originais não são alteradas; não aplicar SQLs abandonados.
+uma conexão operacional, outra de controle comercial e outra de webhooks.
+As quatro tabelas originais não são alteradas. A extensão comercial optativa e
+sua ativação coordenada estão em [VENDAS.md](VENDAS.md); não aplicar SQLs abandonados.
 
 ## Vercel
 
@@ -161,6 +167,12 @@ ainda não está implementada ou validada: não basta registrar em log ou respon
 Conferir também a retenção de logs e backups fora da aplicação.
 
 ## Pendências para publicação pública
+
+Para a extensão comercial, revisar a migração incremental, aplicá-la somente no
+banco de teste autorizado, conferir RLS/permissões e ativar as flags conforme
+[VENDAS.md](VENDAS.md). Nenhum SQL é executado no startup. A versão com flags
+desativadas preserva o fluxo anterior. Conferir `read_orders` antes de habilitar
+a consulta online; este trabalho não alterou a autorização de nenhuma loja.
 
 - Foram removidos os limites compartilhados de dez logins por e-mail, cem por
   instalação e dez tentativas administrativas em quinze minutos. Não há
