@@ -162,7 +162,10 @@ describe("inventário protegido com Nuvemshop e banco simulados", () => {
   it("trata configuração ausente, credencial inválida e falha do banco sem expor o token", async () => {
     assert.equal((await request("", cookie, unconfiguredBase)).status, 503);
     stores = [{ ...store, accessToken: "" }];
-    assert.equal((await request()).status, 409);
+    const invalidCredentials = await request();
+    assert.equal(invalidCredentials.status, 409);
+    assert.match(invalidCredentials.body.message, /conferência administrativa/);
+    assert.doesNotMatch(invalidCredentials.body.message, /refaça.*OAuth/i);
     databaseFailure = true;
     assert.equal((await request()).status, 500);
     assert.equal(calls.length, 0);
@@ -170,5 +173,47 @@ describe("inventário protegido com Nuvemshop e banco simulados", () => {
   it("não expõe uma rota de alteração de estoque", async () => {
     const response = await fetch(`${base}/inventory/101/stock`, { method: "PATCH", headers: { Cookie: cookie } });
     assert.equal(response.status, 404); assert.equal(calls.length, 0);
+  });
+
+  it("consulta detalhes e variantes por ID somente na loja da sessão, sem expor credenciais", async () => {
+    respond = async () => Response.json({ ...product, images: [{ id: 8, src: "https://example.test/luva.jpg" }],
+      variants: [variant, { ...variant, id: 102, values: [{ pt: "10" }], sku: null, stock: -1 }] });
+    const result = await request("/products/100");
+    assert.equal(result.status, 200); assert.equal(result.body.produtoId, "100");
+    assert.equal(result.body.nome, "Luva Portero"); assert.equal(result.body.items.length, 2);
+    assert.equal(result.body.items[1].quantidade, -1); assert.equal(result.body.items[1].ruptura, true);
+    assert.deepEqual(lookedUpUsers, [1]);
+    assert.equal(calls[0].url.pathname, "/2025-03/67890/products/100");
+    assert.equal(calls[0].init.method, "GET");
+    assert.equal(new Headers(calls[0].init.headers).get("Authorization"), `Bearer ${store.accessToken}`);
+  });
+
+  it("detalhes exigem sessão e vínculo e recusam parâmetros de credenciais ou loja", async () => {
+    assert.equal((await request("/products/100", "")).status, 401);
+    stores = []; assert.equal((await request("/products/100")).status, 403);
+    stores = [store];
+    for (const path of ["/products/0", "/products/100?lojaId=20", "/products/100?token=outra-credencial"])
+      assert.equal((await request(path)).status, 400);
+    assert.equal((await request("/products/100", cookie, unconfiguredBase)).status, 503);
+    assert.equal(calls.length, 0);
+  });
+
+  it("detalhes tratam produto removido, resposta de outro produto e falha remota sem sucesso falso", async () => {
+    respond = async () => new Response(store.accessToken, { status: 404 });
+    assert.equal((await request("/products/100")).status, 404);
+    respond = async () => Response.json({ ...product, id: 200 });
+    assert.equal((await request("/products/100")).status, 502);
+    respond = async () => new Response("conteudo-invalido");
+    assert.equal((await request("/products/100")).status, 502);
+    respond = async () => new Response(store.accessToken, { status: 429 });
+    assert.equal((await request("/products/100")).status, 503);
+  });
+
+  it("detalhes limitam também a leitura do corpo e nunca enviam uma escrita", async () => {
+    respond = async init => ({ ok: true, status: 200, headers: new Headers(), json: () => new Promise((_resolve, reject) => {
+      init.signal!.addEventListener("abort", () => reject(init.signal!.reason), { once: true });
+    }) }) as Response;
+    assert.equal((await request("/products/100")).status, 504);
+    assert.ok(calls.every(call => call.init.method === "GET"));
   });
 });

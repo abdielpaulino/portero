@@ -20,6 +20,10 @@ const nextConfig: NextConfig = {
         source: "/api/inventory",
         destination: `${api}/inventory`,
       },
+      {
+        source: "/api/inventory/products/:id",
+        destination: `${api}/inventory/products/:id`,
+      },
       ...["login", "logout", "session"].map(action => ({ source: `/api/auth/${action}`, destination: `${api}/auth/${action}` })),
     ];
   },

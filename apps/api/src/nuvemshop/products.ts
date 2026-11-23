@@ -79,13 +79,16 @@ function normalize(products: unknown[], language: string): InventoryItem[] {
 }
 
 export function createProductsClient(userAgent: string, fetcher: typeof fetch = fetch, timeoutMs = 10_000) {
-  async function list(store: StoreCredentials, page: number) {
+  function validateCredentials(store: StoreCredentials) {
     if (!userAgent.trim() || /[\r\n]/.test(userAgent)) {
       throw new NuvemshopError(503, "A identificação da integração Nuvemshop não está configurada.");
     }
     if (!/^[1-9]\d*$/.test(store.nuvemshopStoreId) || !/^[\x21-\x7e]{1,4096}$/.test(store.accessToken)) {
-      throw new NuvemshopError(409, "A loja não possui credenciais válidas. Refaça a conexão OAuth.");
+      throw new NuvemshopError(409, "A loja não possui credenciais válidas. Solicite conferência administrativa da integração.");
     }
+  }
+  async function list(store: StoreCredentials, page: number) {
+    validateCredentials(store);
     const url = new URL(`https://api.nuvemshop.com.br/2025-03/${store.nuvemshopStoreId}/products`);
     url.searchParams.set("page", String(page));
     url.searchParams.set("per_page", String(PAGE_SIZE));
@@ -125,5 +128,27 @@ export function createProductsClient(userAgent: string, fetcher: typeof fetch = 
       throw new NuvemshopError(502, "Não foi possível obter uma resposta válida do inventário.");
     }
   }
-  return { list };
+  async function get(store: StoreCredentials, produtoId: string) {
+    if (!/^[1-9]\d{0,19}$/.test(produtoId)) throw new NuvemshopError(400, "Produto inválido.");
+    validateCredentials(store);
+    const url = new URL(`https://api.nuvemshop.com.br/2025-03/${store.nuvemshopStoreId}/products/${produtoId}`);
+    url.searchParams.set("fields", "id,name,images,variants");
+    const signal = AbortSignal.timeout(timeoutMs);
+    try {
+      const response = await fetcher(url, { method: "GET", redirect: "error", signal,
+        headers: { Accept: "application/json", Authorization: `Bearer ${store.accessToken}`, "User-Agent": userAgent } });
+      if (response.status === 404) throw new NuvemshopError(404, "Produto não encontrado na loja conectada.");
+      if (response.status === 429) throw new NuvemshopError(503, "Limite de consultas da Nuvemshop atingido. Tente novamente em instantes.");
+      if (!response.ok) throw new NuvemshopError(502, "Não foi possível consultar o produto na Nuvemshop.");
+      const product: unknown = await response.json();
+      if (!record(product) || id(product.id) !== produtoId) return invalidResponse();
+      const language = response.headers.get("x-main-language") ?? "pt";
+      return { produtoId, nome: localized(product.name, language), items: normalize([product], language) };
+    } catch (error) {
+      if (signal.aborted) throw new NuvemshopError(504, "A Nuvemshop demorou para responder. Tente novamente.");
+      if (error instanceof NuvemshopError) throw error;
+      throw new NuvemshopError(502, "Não foi possível obter uma resposta válida do produto.");
+    }
+  }
+  return { list, get };
 }

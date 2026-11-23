@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { carregarInventario, filtrarItens, precoLabel, quantidadeLabel, type Item } from "../src/app/inventory/data";
+import { carregarCatalogo, carregarInventario, filtrarItens, precoLabel, quantidadeLabel, type Item } from "../src/app/inventory/data";
 import nextConfig from "../next.config";
 
 const item: Item = { id: "100:101", produtoId: "100", varianteId: "101", nome: "Luva Portero",
@@ -62,5 +62,24 @@ it("encaminha a listagem e a rota explícita de baixas sem expor um proxy genér
   assert.ok(inventory);
   assert.ok(inventory.destination.endsWith("/inventory"));
   assert.deepEqual(rewrites.filter((entry) => entry.source.startsWith("/api/inventory/")).map((entry) => entry.source),
-    ["/api/inventory/stock-decreases", "/api/inventory/stock-decreases/:id/:action*"]);
+    ["/api/inventory/stock-decreases", "/api/inventory/stock-decreases/:id/:action*", "/api/inventory/products/:id"]);
+});
+
+it("busca e filtros abrangem itens de páginas posteriores do catálogo", async () => {
+  const later = { ...item, id: "200:201", produtoId: "200", varianteId: "201", nome: "Outra luva", sku: "SEGUNDA-PAGINA", quantidade: -1, ruptura: true };
+  const calls: string[] = [];
+  const items = await carregarCatalogo(undefined, async url => {
+    calls.push(String(url));
+    return Response.json(String(url).endsWith("=1") ? { page: 1, nextPage: 2, items: [item] }
+      : { page: 2, nextPage: null, items: [later] });
+  });
+  assert.deepEqual(calls, ["/api/inventory?page=1", "/api/inventory?page=2"]);
+  assert.deepEqual(filtrarItens(items, "SEGUNDA-PAGINA", "ruptura"), [later]);
+});
+
+it("catálogo não apresenta uma primeira página como resultado completo após falha e respeita cancelamento", async () => {
+  await assert.rejects(carregarCatalogo(undefined, async url => String(url).endsWith("=1")
+    ? Response.json({ page: 1, nextPage: 2, items: [item] }) : new Response(null, { status: 503 })), /carregar o inventário/);
+  const controller = new AbortController(); controller.abort();
+  await assert.rejects(carregarCatalogo(controller.signal, async () => { assert.fail("Não deve consultar"); }));
 });
