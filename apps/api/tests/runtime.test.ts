@@ -38,3 +38,9 @@ it("o IP local específico é aceito apenas em desenvolvimento, sem liberar outr
   assert.throws(() => readRuntime({ ...local, WEB_ORIGIN: "http://192.168.3.8:3000" }));
   assert.throws(() => readRuntime({ ...production, WEB_ORIGIN: "http://192.168.3.7:3000" }));
 });
+
+it("convites exigem ativação explícita e recusam flags inválidas", () => {
+  assert.equal(readRuntime(local).invitationsEnabled, false);
+  assert.equal(readRuntime({ ...local, INVITATIONS_ENABLED: "true" }).invitationsEnabled, true);
+  assert.throws(() => readRuntime({ ...local, INVITATIONS_ENABLED: "sim" }));
+});

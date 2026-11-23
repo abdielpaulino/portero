@@ -105,8 +105,11 @@ significar exclusão anterior: não é prova de instalação inédita.
    administrativo. Felipe autoriza na Nuvemshop. Concluir no mesmo navegador,
    em cinco minutos, sem compartilhar o segredo ou colocá-lo na URL.
 4. Com a loja conectada, a equipe executa
-   `npm run user:create-initial --workspace=@portero/api -- --env-file <arquivo-administrativo>`.
-   O comando confirma a loja e solicita nome, e-mail e senha oculta.
+   `npm run user:invite --workspace=@portero/api -- --env-file <arquivo-administrativo>`
+   após habilitar convites e aplicar a extensão operacional. O link permite definir
+   nome e senha, sem serviço de e-mail. OAuth não exige login interno: conectar
+   primeiro, gerar o convite depois. O comando `user:create-initial` permanece
+   como alternativa e não substitui usuários existentes.
 
 O controle usa apenas estados escalares de `lojas.status`:
 `instalacao_inicializada → oauth_pendente → oauth_em_troca → ativa`.
@@ -208,9 +211,24 @@ Ela cria apenas `convites_conta`, `conferencias_baixa`, `configuracoes_loja` e
 `alertas_estoque`, com RLS. Não altera as quatro tabelas originais. Os arquivos
 não foram executados. Não usar SQL inicial, geração automática ou scripts abandonados.
 
-Aplicar somente após validar as migrações em PostgreSQL de teste e publicar
-um backend compatível com os novos objetos e sua exclusão. Conferir o papel
-SQL da API em `20261122-operational-review.sql`; não conceder acesso ao navegador.
+| Variável adicional da API | Configuração |
+| --- | --- |
+| `INVITATIONS_ENABLED=false` | Ativar após migração e permissões; tela pública somente por credencial de convite |
+
+Permissões novas: SELECT/INSERT/UPDATE em convites e preferências;
+SELECT/INSERT em conferências; SELECT/INSERT/UPDATE em alertas; DELETE nos
+objetos excluídos pelo webhook e geração de identidades. Conferir as permissões
+originais de atualização de baixas. Executar somente as consultas de metadados
+de `20261122-operational-review.sql`, selecionando o papel real da API. GRANT
+sozinho não supera RLS; não conceder acesso a anon/authenticated nem desabilitar RLS.
+
+O convite é aleatório, fica no fragmento do link e é removido da URL na tela.
+O banco guarda somente o hash; ele é vinculado à loja/e-mail, expira em 24 horas
+por padrão e é consumido com a criação da conta na mesma transação. Outro convite
+para o mesmo e-mail revoga o anterior. Resposta perdida da ativação exige tentar
+login antes de solicitar novo convite. Compartilhar o link confidencial somente
+com o destinatário; não copiá-lo para issues ou logs. Senhas exigem 12 caracteres
+e até 72 bytes; nomes, senhas e segredo administrativo não entram na URL.
 
 O webhook apaga convites, conferências e preferências/alertas antes dos registros
 originais, mesmo com flags desativadas. Após esses dados existirem, retornar apenas

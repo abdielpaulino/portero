@@ -10,6 +10,7 @@ import { NuvemshopError } from "./nuvemshop/oauth.js";
 import { createNuvemshopWebhookRouter, type WebhookOptions } from "./nuvemshop/webhooks.js";
 import { createSalesRouter, type SalesOptions } from "./sales/routes.js";
 import { createOrdersRouter, type OrdersOptions } from "./sales/orders-routes.js";
+import { createInvitationRouter, type InvitationRepository } from "./auth/invitations.js";
 
 type AppOptions = {
   repository: AuthRepository;
@@ -27,10 +28,11 @@ type AppOptions = {
   webhooks?: WebhookOptions;
   sales?: SalesOptions;
   orders?: OrdersOptions;
+  invitations?: InvitationRepository;
 };
 
 export function createApp({ repository, jwtSecret, secureCookies = false, webOrigin = "http://localhost:3000", nuvemshop, inventory, stock, history,
-  apiOrigin = "http://localhost:3001", requireOrigin = false, verifyInstallation, webhooks, sales, orders }: AppOptions) {
+  apiOrigin = "http://localhost:3001", requireOrigin = false, verifyInstallation, webhooks, sales, orders, invitations }: AppOptions) {
   const app = express();
   if (webhooks) app.use("/webhooks/nuvemshop", createNuvemshopWebhookRouter(webhooks));
   app.use(cors({ origin: webOrigin, credentials: true }));
@@ -60,6 +62,7 @@ export function createApp({ repository, jwtSecret, secureCookies = false, webOri
     }
   });
 
+  app.use("/auth/invitations", createInvitationRouter(invitations));
   app.use("/auth", createAuthRouter(repository, jwtSecret, secureCookies, stock?.enabled, sales || orders ? { externas: !!sales, online: !!orders } : undefined));
   app.use("/sales/external", createSalesRouter(jwtSecret, sales));
   app.use("/sales/online-orders", createOrdersRouter(jwtSecret, orders));

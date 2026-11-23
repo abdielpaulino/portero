@@ -21,12 +21,13 @@ Professor orientador: Hyan Dias Tavares
 ## Funcionalidades
 
 - Login interno, sessão com JWT em cookie HttpOnly e logout.
-- Criação administrativa de usuários, sem cadastro público.
+- Conta por convite administrativo de uso único, com e-mail autorizado e expiração;
+  comando administrativo preservado como alternativa, sem cadastro público.
 - OAuth administrativo para a primeira ativação de uma única loja.
 - Consulta do catálogo completo, com busca por produto ou SKU e filtros de estoque.
 - Detalhes do produto, seleção de variante, preço, imagem e quantidade.
 - Baixa por venda externa em duas etapas, usando o ID original de
-  `baixas_estoque`, sem alteração estrutural do banco.
+  `baixas_estoque`, preservando as quatro tabelas originais.
 - Histórico com recuperação de operações registradas.
 - Dashboard com contagens do catálogo, estoque não controlado e baixas recentes.
 - Extensão comercial para vendas externas, itens, canal e recebimentos/estornos
@@ -91,6 +92,10 @@ incremental própria, preparada para revisão e ainda não aplicada. Manter
 pedidos é ativada separadamente por `ONLINE_ORDERS_ENABLED`, após conferir
 `read_orders`. Modelo e ordem de ativação estão em [VENDAS.md](VENDAS.md).
 
+Convites usam `20261122-operational-extension.sql`, preparado e não aplicado.
+Manter `INVITATIONS_ENABLED=false` até validar a migração e as permissões em
+[DEPLOY.md](DEPLOY.md).
+
 ## Rodando
 
 Na raiz, executar em terminais separados:
@@ -108,9 +113,11 @@ Nenhum endpoint cria ou recria uma loja. O fluxo expira em cinco minutos e é
 consumido no PostgreSQL antes da troca do código. Falhas e interrupções exigem
 conferência administrativa, sem reset ou repetição automática.
 
-Com a loja conectada, criar a conta interna em terminal interativo:
-`npm run user:create-initial --workspace=@portero/api`. O comando confirma o ID da
-loja e solicita nome, e-mail e senha oculta. Não altera usuários existentes.
+Com a loja conectada e a extensão operacional habilitada, gerar o convite:
+`npm run user:invite --workspace=@portero/api`. O comando solicita e-mail e validade
+e entrega um link confidencial para o destinatário definir nome e senha.
+`npm run user:create-initial --workspace=@portero/api` permanece como alternativa;
+nenhum desses fluxos substitui uma senha existente.
 A publicação e o arquivo administrativo separado estão descritos em [DEPLOY.md](DEPLOY.md).
 O roteiro da versão inicial de consulta está em [PUBLICACAO.md](PUBLICACAO.md).
 

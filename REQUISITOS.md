@@ -11,7 +11,7 @@ ilustrativos e não definem fórmulas financeiras ou resultados de teste.
 
 | Requisito | Fonte original | Implementação atual | Pendência |
 | --- | --- | --- | --- |
-| Acesso somente administrativo | PDF p. 4; slide 4 e notas | Login interno, JWT, vínculo com loja e cadastro por procedimento administrativo | Conferência das contas pela equipe; não há cadastro público |
+| Acesso somente administrativo | PDF p. 4; slide 4 e notas; convite detalhado em orientação posterior | Login interno, JWT, vínculo com loja, convite com hash/expiração/consumo atômico e alternativa por comando | Aplicar extensão operacional e validar ativação; não há cadastro público |
 | Consulta de produtos, preços e quantidades | PDF p. 7; slide 7 | Catálogo consultado pela API, com imagens, variantes e SKU | Validação publicada |
 | Pesquisa por produto ou SKU e filtros de estoque | PDF p. 7; slide 7 e notas | Todas as páginas são consultadas antes de aplicar busca e filtros; falhas não produzem catálogo parcial apresentado como completo | Medir custo e latência no catálogo real |
 | Navegar do inventário aos detalhes e selecionar variante | PDF p. 8; slide 8 e notas | Link por produto e variante, detalhes protegidos e seleção de variante; variante removida não é substituída silenciosamente | Validação publicada |

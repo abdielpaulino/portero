@@ -13,6 +13,7 @@ import { createPrivacyReporter } from "./nuvemshop/privacy-report.js";
 import { pool, salesControlPool, webhookPool } from "./db/client.js";
 import { createSalesRepository } from "./sales/repository.js";
 import { createOrdersClient } from "./nuvemshop/orders.js";
+import { createInvitationRepository } from "./auth/invitations.js";
 
 const runtime = readRuntime(process.env);
 const config = runtime.nuvemshop;
@@ -30,6 +31,7 @@ const app = createApp({
   verifyInstallation: () => nuvemshopRepository.verificarInstalacao(integration.storeId),
   history: stockHistoryRepository,
   stock,
+  invitations: runtime.invitationsEnabled ? createInvitationRepository(pool, integration.storeId) : undefined,
   sales: runtime.externalSalesEnabled ? { repository: salesRepository, products: createProductsClient(integration.userAgent), stock } : undefined,
   orders: runtime.onlineOrdersEnabled ? { repository: salesRepository, client: createOrdersClient(integration.userAgent) } : undefined,
   inventory: { repository: inventoryRepository, client: createProductsClient(integration.userAgent) },

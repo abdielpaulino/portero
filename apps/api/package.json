@@ -10,6 +10,7 @@
     "test": "tsx --test tests/*.test.ts",
     "start": "node dist/index.js",
     "user:create-initial": "tsx src/scripts/create-initial-user.ts",
+    "user:invite": "tsx src/scripts/create-invitation.ts",
     "installation:initialize": "tsx src/scripts/initialize-installation.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx src/db/migrate.ts"
