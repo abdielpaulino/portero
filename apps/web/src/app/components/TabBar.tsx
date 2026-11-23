@@ -26,6 +26,16 @@ const TABS = [
     ),
   },
   {
+    href: "/sales",
+    label: "Vendas",
+    icon: (
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M6 3h12v18l-3-2-3 2-3-2-3 2V3z" />
+        <path d="M9 8h6M9 12h6" />
+      </svg>
+    ),
+  },
+  {
     href: "/settings",
     label: "Configurações",
     icon: (
@@ -45,6 +55,7 @@ export default function TabBar() {
     <nav className={styles.tabbar}>
       {TABS.map((tab) => (
         <button
+          type="button"
           key={tab.href}
           className={styles.tabItem}
           data-active={pathname === tab.href}

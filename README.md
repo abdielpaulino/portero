@@ -109,6 +109,9 @@ npm run dev:web
 ```
 
 Frontend em `http://localhost:3000` e API em `http://localhost:3001`.
+O registro comercial está na aba **Vendas** (`/sales`). Exige a migração comercial
+e `EXTERNAL_SALES_ENABLED=true` na API, conforme [VENDAS.md](VENDAS.md).
+**Dar baixa** continua registrando somente estoque.
 
 Para uma primeira instalação, a equipe prepara explicitamente um registro local,
 sem token, e configura o OAuth administrativo conforme [DEPLOY.md](DEPLOY.md).

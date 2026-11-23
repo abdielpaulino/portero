@@ -130,10 +130,59 @@ it("flags desativadas não consultam a extensão nem impedem o inventário exist
   const calls: string[] = [];
   globalThis.fetch = async url => { calls.push(String(url)); return Response.json({ usuarioId: 1, loja: session.loja }); };
   const view = await mount(<Sales />);
-  try { assert.deepEqual(calls, ["/api/auth/session"]); assert.match(view.container.textContent!, /ainda não ativado/); }
+  try {
+    assert.deepEqual(calls, ["/api/auth/session"]); assert.match(view.container.textContent!, /ainda não ativado/);
+    assert.equal(view.container.querySelector("form"), null);
+    assert.ok([...view.container.querySelectorAll("nav button")].some(button => button.textContent === "Vendas"));
+    await view.click("Conferir disponibilidade novamente");
+    assert.deepEqual(calls, ["/api/auth/session", "/api/auth/session"]);
+  }
   finally { await view.close(); }
   calls.length = 0;
   const dashboard = await mount(<Dashboard />);
   try { assert.deepEqual(calls, ["/api/auth/session"]); assert.equal(dashboard.container.textContent, ""); }
   finally { await dashboard.close(); }
+});
+it("carregamento da sessão não é anunciado como recurso desativado", async () => {
+  let finish!: (response: Response) => void;
+  globalThis.fetch = async () => new Promise<Response>(resolve => { finish = resolve; });
+  const view = await mount(<Sales />);
+  try {
+    assert.match(view.container.textContent!, /Verificando disponibilidade/); assert.doesNotMatch(view.container.textContent!, /ainda não ativado/);
+    assert.equal(view.container.querySelector("form"), null);
+    await act(() => finish(Response.json({ ...session, vendasExternasHabilitadas: false })));
+    assert.match(view.container.textContent!, /ainda não ativado/);
+  } finally { await view.close(); }
+});
+it("falha ao verificar a sessão permite nova leitura e abre o formulário completo sem executar estoque", async () => {
+  let fail = true; const reads: string[] = [];
+  globalThis.fetch = async (url, init) => {
+    assert.equal(init?.method ?? "GET", "GET"); reads.push(String(url));
+    if (fail) throw new Error("API indisponível");
+    if (url === "/api/auth/session") return Response.json({ ...session, baixasHabilitadas: false });
+    if (url === "/api/inventory?page=1") return Response.json({ page: 1, nextPage: null, items: [item] });
+    assert.equal(url, "/api/sales/external?page=1"); return Response.json({ page: 1, hasMore: false, items: [] });
+  };
+  const view = await mount(<Sales />);
+  try {
+    assert.match(view.container.textContent!, /Não foi possível abrir/); assert.doesNotMatch(view.container.textContent!, /ainda não ativado/);
+    assert.equal(view.container.querySelector("form"), null); fail = false;
+    await view.click("Tentar carregar novamente");
+    assert.ok(view.container.querySelector("form")); assert.match(view.container.textContent!, /Canal/);
+    assert.match(view.container.textContent!, /Forma de pagamento/); assert.match(view.container.textContent!, /Valor recebido informado/);
+    assert.equal(reads.filter(url => url === "/api/auth/session").length, 2);
+  } finally { await view.close(); }
+});
+it("flag habilitada com histórico indisponível não libera formulário incompleto nem presume migração aplicada", async () => {
+  globalThis.fetch = async (url, init) => {
+    assert.equal(init?.method ?? "GET", "GET");
+    if (url === "/api/auth/session") return Response.json(session);
+    if (url === "/api/inventory?page=1") return Response.json({ page: 1, nextPage: null, items: [item] });
+    assert.equal(url, "/api/sales/external?page=1"); return Response.json({ message: "Histórico comercial indisponível." }, { status: 503 });
+  };
+  const view = await mount(<Sales />);
+  try {
+    assert.match(view.container.textContent!, /Histórico comercial indisponível/); assert.match(view.container.textContent!, /Esta consulta não cria vendas nem executa baixas/);
+    assert.doesNotMatch(view.container.textContent!, /ainda não ativado/); assert.equal(view.container.querySelector("form"), null);
+  } finally { await view.close(); }
 });
