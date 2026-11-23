@@ -6,7 +6,7 @@ import type { StockRepository, StockRecord } from "../src/stock/service.js";
 const auth={usuarioId:1,lojaId:10}, command={produtoId:"100",varianteId:"101",quantidade:2};
 const row: StockRecord={id:7,usuarioId:1,produtoId:"100",variantId:"101",quantidadeBaixada:2,statusSincronizacao:"registrada"};
 let repository:StockRepository, queries:{text:string;values:unknown[]}[], released:boolean|undefined;
-let access:boolean, lock:boolean, found:boolean, unresolved:boolean, rowCount:number, fail:string|undefined;
+let access:boolean, lock:boolean, installationLock:boolean, found:boolean, unresolved:boolean, rowCount:number, fail:string|undefined;
 const events=new EventEmitter(); const previous=process.env.DATABASE_URL;
 before(async()=>{
  process.env.DATABASE_URL="postgresql://offline:offline@127.0.0.1:1/offline";
@@ -14,6 +14,7 @@ before(async()=>{
   on:(name:string,listener:()=>void)=>events.on(name,listener), removeListener:(name:string,listener:()=>void)=>events.removeListener(name,listener),
   async query(text:string,values:unknown[]){
    queries.push({text,values}); if(fail&&text.startsWith(fail))throw new Error("erro-sensivel");
+   if(text.includes("pg_try_advisory_lock_shared"))return{rows:[{locked:installationLock}]};
    if(text.includes("FROM usuarios_app"))return{rows:access?[{id:10,nuvemshopStoreId:"67890",accessToken:"ficticio"}]:[]};
    if(text.includes("pg_try_advisory_lock"))return{rows:[{locked:lock}]};
    if(text.includes("pg_advisory_unlock"))return{rows:[{unlocked:true}]};
@@ -25,14 +26,37 @@ before(async()=>{
  }));
  repository=(await import("../src/stock/repository.js")).stockRepository;
 });
-beforeEach(()=>{queries=[];released=undefined;access=true;lock=true;found=true;unresolved=false;rowCount=1;fail=undefined;});
+beforeEach(()=>{queries=[];released=undefined;access=true;lock=true;installationLock=true;found=true;unresolved=false;rowCount=1;fail=undefined;});
 after(()=>{mock.restoreAll(); if(previous===undefined)delete process.env.DATABASE_URL;else process.env.DATABASE_URL=previous;});
 it("cria usando somente colunas originais, lock PostgreSQL e identidade gerada no banco",async()=>{
  await repository.withLock(auth,command,async context=>{assert.equal(await context.hasUnresolved(),false);assert.equal((await context.create(command)).id,7);});
  const insert=queries.find(q=>q.text.startsWith("INSERT"))!; assert.deepEqual(insert.values,[10,1,"100","101",2]);
  assert.ok(!/requisicao_id|estoque_anterior|estoque_novo|ON CONFLICT/.test(queries.map(q=>q.text).join(" ")));
- assert.deepEqual(queries.find(q=>q.text.includes("pg_try_advisory_lock"))!.values,[10,"101"]);
+ assert.deepEqual(queries.find(q=>q.text.includes("pg_try_advisory_lock("))!.values,[10,"101"]);
  assert.match(queries.at(-1)!.text,/pg_advisory_unlock/);assert.equal(released,false);
+});
+it("desinstalação ou reautorização em curso bloqueia a baixa antes de ler credenciais",async()=>{
+ installationLock=false;
+ let ran=false;await assert.rejects(repository.withLock(auth,command,async()=>{ran=true;}),{status:503});
+ assert.equal(ran,false);assert.equal(queries.length,1);assert.equal(released,false);
+ assert.match(queries[0].text,/pg_try_advisory_lock_shared\(7144630821938501::bigint\)/);
+});
+it("mantém o lock compartilhado durante toda a execução e o libera depois do lock da variante",async()=>{
+ await repository.withLock(auth,7,async()=>{
+  assert.ok(queries[0].text.includes("pg_try_advisory_lock_shared"));
+  assert.ok(queries.every(query=>!query.text.includes("pg_advisory_unlock")));
+  const storeQuery=queries.find(query=>query.text.includes("FROM usuarios_app"))!.text;
+  assert.match(storeQuery,/length\(btrim\(l.access_token\)\) > 0/);
+  assert.match(storeQuery,/l.status IN \('pendente', 'ativa'\)/);
+ });
+ assert.match(queries.at(-2)!.text,/pg_advisory_unlock\(/);
+ assert.match(queries.at(-1)!.text,/pg_advisory_unlock_shared/);
+});
+it("descarta a conexão se a confirmação de qualquer lock se perder",async()=>{
+ for(const point of ["SELECT pg_try_advisory_lock_shared","SELECT pg_try_advisory_lock("]){
+  fail=point;await assert.rejects(repository.withLock(auth,command,async()=>{}),{status:503});
+  assert.equal(released,true);
+ }
 });
 it("confirma pelo ID e revalida autor/loja, relendo estado depois de adquirir o lock",async()=>{
  await repository.withLock(auth,7,async context=>{assert.equal(context.operation!.id,7);await context.prepare(7,"LUVA");await context.status(7,"sincronizada");});
@@ -52,7 +76,7 @@ it("vínculo revogado, ID de outro autor e lock ocupado impedem execução do ca
 });
 it("bloqueia pendências persistentes de qualquer autor na variante, excluindo apenas a própria operação",async()=>{
  unresolved=true;await repository.withLock(auth,7,async context=>assert.equal(await context.hasUnresolved(7),true));
- const query=queries.find(q=>q.text.includes("NOT IN"))!;assert.deepEqual(query.values,[10,"101",7]);assert.ok(!query.text.includes("usuario_id"));
+ const query=queries.find(q=>q.text.includes("status_sincronizacao NOT IN"))!;assert.deepEqual(query.values,[10,"101",7]);assert.ok(!query.text.includes("usuario_id"));
 });
 it("descarta conexão quebrada e não expõe erros internos",async()=>{
  await repository.withLock(auth,7,async()=>{events.emit("error",new Error("interno"));});assert.equal(released,true);assert.equal(events.listenerCount("error"),0);

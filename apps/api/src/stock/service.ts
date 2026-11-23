@@ -23,8 +23,8 @@ function result(record: StockRecord, httpStatus: number, message: string, repeti
   return { httpStatus, body: { baixaId: record.id, produtoId: record.produtoId, varianteId: record.variantId,
     quantidade: record.quantidadeBaixada, statusSincronizacao: record.statusSincronizacao, message, repetida } };
 }
-function checkStore(context: StockContext, demoStoreId: string) {
-  if (context.store.nuvemshopStoreId !== demoStoreId) throw new NuvemshopError(403, "A baixa está limitada à loja demo configurada.");
+function checkStore(context: StockContext, storeId: string) {
+  if (context.store.nuvemshopStoreId !== storeId) throw new NuvemshopError(403, "A baixa está limitada à loja configurada nesta instalação.");
 }
 function getOperation(context: StockContext, auth: AuthContext, id: number) {
   const record = context.operation;
@@ -36,23 +36,23 @@ function getOperation(context: StockContext, auth: AuthContext, id: number) {
   }
   return record;
 }
-export async function registerStockDecrease(repository: StockRepository, demoStoreId: string, auth: AuthContext, command: StockCommand) {
+export async function registerStockDecrease(repository: StockRepository, storeId: string, auth: AuthContext, command: StockCommand) {
   return repository.withLock(auth, command, async (context) => {
-    checkStore(context, demoStoreId);
+    checkStore(context, storeId);
     if (await context.hasUnresolved()) throw new NuvemshopError(409,
       "A variante possui uma operação pendente ou sem confirmação. Recupere o registro pelo histórico.");
     return result(await context.create(command), 201, "Operação local registrada. O estoque ainda não foi alterado.");
   });
 }
-export async function inspectStockDecrease(repository: StockRepository, demoStoreId: string, auth: AuthContext, id: number) {
+export async function inspectStockDecrease(repository: StockRepository, storeId: string, auth: AuthContext, id: number) {
   return repository.withLock(auth, id, async (context) => {
-    checkStore(context, demoStoreId);
+    checkStore(context, storeId);
     return result(getOperation(context, auth, id), 200, "Operação consultada.");
   });
 }
-export async function cancelStockDecrease(repository: StockRepository, demoStoreId: string, auth: AuthContext, id: number) {
+export async function cancelStockDecrease(repository: StockRepository, storeId: string, auth: AuthContext, id: number) {
   return repository.withLock(auth, id, async (context) => {
-    checkStore(context, demoStoreId);
+    checkStore(context, storeId);
     const record = getOperation(context, auth, id);
     if (record.statusSincronizacao !== "registrada") throw new NuvemshopError(409, "Somente uma operação ainda não enviada pode ser cancelada.");
     await context.status(id, "rejeitada");
@@ -60,9 +60,9 @@ export async function cancelStockDecrease(repository: StockRepository, demoStore
   });
 }
 export async function decreaseStock(repository: StockRepository, client: ReturnType<typeof createStockClient>,
-  demoStoreId: string, auth: AuthContext, id: number) {
+  storeId: string, auth: AuthContext, id: number) {
   return repository.withLock(auth, id, async (context) => {
-    checkStore(context, demoStoreId);
+    checkStore(context, storeId);
     let record = getOperation(context, auth, id);
     if (record.statusSincronizacao === "sincronizada") return result(record, 200, "Baixa já confirmada.", true);
     if (record.statusSincronizacao !== "registrada") return result(record, 409,

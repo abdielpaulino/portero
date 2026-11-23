@@ -6,6 +6,8 @@ import { createNuvemshopRouter, type NuvemshopOptions } from "./nuvemshop/routes
 import { createInventoryRouter, type InventoryOptions } from "./inventory/routes.js";
 import { createStockRouter, type StockOptions } from "./stock/routes.js";
 import { createStockHistoryRouter, type StockHistoryRepository } from "./inventory/history.js";
+import { NuvemshopError } from "./nuvemshop/oauth.js";
+import { createNuvemshopWebhookRouter, type WebhookOptions } from "./nuvemshop/webhooks.js";
 
 type AppOptions = {
   repository: AuthRepository;
@@ -17,13 +19,23 @@ type AppOptions = {
   inventory?: InventoryOptions;
   stock?: StockOptions;
   history?: StockHistoryRepository;
+  apiOrigin?: string;
+  requireOrigin?: boolean;
+  verifyInstallation?: () => Promise<void>;
+  webhooks?: WebhookOptions;
 };
 
-export function createApp({ repository, jwtSecret, secureCookies = false, webOrigin = "http://localhost:3000", environment, nuvemshop, inventory, stock, history }: AppOptions) {
+export function createApp({ repository, jwtSecret, secureCookies = false, webOrigin = "http://localhost:3000", nuvemshop, inventory, stock, history,
+  apiOrigin = "http://localhost:3001", requireOrigin = false, verifyInstallation, webhooks }: AppOptions) {
   const app = express();
+  if (webhooks) app.use("/webhooks/nuvemshop", createNuvemshopWebhookRouter(webhooks));
   app.use(cors({ origin: webOrigin, credentials: true }));
   app.use((req, res, next) => {
-    if (!["GET", "HEAD", "OPTIONS"].includes(req.method) && req.get("Origin") && req.get("Origin") !== webOrigin) {
+    const installationRoute = req.path.startsWith("/auth/nuvemshop/");
+    const origin = req.get("Origin");
+    const bearerAdmin = installationRoute && req.get("Authorization")?.startsWith("Bearer ");
+    if (!["GET", "HEAD", "OPTIONS"].includes(req.method)
+      && ((origin && origin !== (installationRoute ? apiOrigin : webOrigin)) || (requireOrigin && !origin && !bearerAdmin))) {
       res.status(403).json({ message: "Origem da solicitação não permitida." });
       return;
     }
@@ -35,15 +47,19 @@ export function createApp({ repository, jwtSecret, secureCookies = false, webOri
     res.json({ status: "ok" });
   });
 
-  app.use("/auth", createAuthRouter(repository, jwtSecret, secureCookies));
+  if (nuvemshop) app.use("/auth/nuvemshop", createNuvemshopRouter(nuvemshop, jwtSecret, secureCookies));
+  app.use(async (req, res, next) => {
+    if (req.method === "POST" && /^\/auth\/logout\/?$/.test(req.path)) { next(); return; }
+    try { await verifyInstallation?.(); next(); }
+    catch (error) {
+      res.status(error instanceof NuvemshopError ? error.status : 503).json({ message: "Instalação indisponível. Solicite conferência administrativa do controle e da loja." });
+    }
+  });
+
+  app.use("/auth", createAuthRouter(repository, jwtSecret, secureCookies, stock?.enabled));
   app.use("/inventory", createInventoryRouter(jwtSecret, inventory));
   app.use("/inventory/stock-decreases", createStockHistoryRouter(repository, jwtSecret, history));
-  if (environment === "development") {
-    app.use("/inventory/stock-decreases", createStockRouter(jwtSecret, stock));
-  }
-  if (environment === "development" && nuvemshop) {
-    app.use("/auth/nuvemshop", createNuvemshopRouter(nuvemshop, jwtSecret));
-  }
+  app.use("/inventory/stock-decreases", createStockRouter(jwtSecret, stock));
 
   const handleError: ErrorRequestHandler = (error, _req, res, _next) => {
     const status = error.status === 400 || error.status === 413 ? error.status : 500;

@@ -1,8 +1,11 @@
 export type NuvemshopConfig = {
   clientId: string;
   clientSecret: string;
-  demoStoreId: string;
+  storeId: string;
   userAgent: string;
+  apiOrigin: string;
+  installationId: string;
+  adminToken: string;
 };
 
 export type LojaConectada = {
@@ -19,16 +22,32 @@ export class NuvemshopError extends Error {
 }
 
 export function readNuvemshopConfig(env: NodeJS.ProcessEnv): NuvemshopConfig | undefined {
-  if (env.NODE_ENV !== "development") return undefined;
   const values = [env.NUVEMSHOP_CLIENT_ID, env.NUVEMSHOP_CLIENT_SECRET,
-    env.NUVEMSHOP_DEMO_STORE_ID, env.NUVEMSHOP_USER_AGENT];
+    env.NUVEMSHOP_STORE_ID, env.NUVEMSHOP_USER_AGENT];
   if (values.every((value) => !value?.trim())) return undefined;
-  const [clientId, clientSecret, demoStoreId, userAgent] = values.map((value) => value?.trim() ?? "");
-  if (!/^[1-9]\d*$/.test(clientId) || !clientSecret || (demoStoreId !== "" && !/^[1-9]\d*$/.test(demoStoreId))
+  const [clientId, clientSecret, storeId, userAgent] = values.map((value) => value?.trim() ?? "");
+  const apiOrigin = env.API_PUBLIC_URL?.trim() ?? "http://localhost:3001";
+  const installationId = env.PORTERO_INSTALLATION_ID?.trim() ?? "";
+  const adminToken = env.INSTALLATION_ADMIN_TOKEN ?? "";
+  if (!/^[1-9]\d*$/.test(clientId) || !clientSecret || (storeId !== "" && !/^[1-9]\d*$/.test(storeId))
     || !userAgent || /[\r\n]/.test(userAgent)) {
-    throw new Error("Configure NUVEMSHOP_CLIENT_ID, NUVEMSHOP_CLIENT_SECRET e NUVEMSHOP_USER_AGENT no backend. NUVEMSHOP_DEMO_STORE_ID deve ser vazio ou um ID numérico válido.");
+    throw new Error("Configure as credenciais NUVEMSHOP e NUVEMSHOP_STORE_ID numérico, ou vazio somente para descoberta administrativa.");
   }
-  return { clientId, clientSecret, demoStoreId, userAgent };
+  if (env.NUVEMSHOP_DEMO_STORE_ID) throw new Error("Substitua NUVEMSHOP_DEMO_STORE_ID por NUVEMSHOP_STORE_ID somente após conferir o banco desta instalação.");
+  if (!/^[a-zA-Z0-9_-]{8,80}$/.test(installationId) || Buffer.byteLength(adminToken) < 32 || /[\r\n]/.test(adminToken)) {
+    throw new Error("Configure PORTERO_INSTALLATION_ID e INSTALLATION_ADMIN_TOKEN exclusivo com pelo menos 32 bytes.");
+  }
+  validateOrigin(apiOrigin, env.NODE_ENV === "production");
+  return { clientId, clientSecret, storeId, userAgent, apiOrigin, installationId, adminToken };
+}
+
+export function validateOrigin(value: string, production: boolean) {
+  let url: URL;
+  try { url = new URL(value); } catch { throw new Error("Informe uma origem válida, sem caminho ou barra final."); }
+  if (url.origin !== value || url.username || url.password || (url.protocol !== "https:"
+    && (production || url.protocol !== "http:" || !["localhost", "127.0.0.1", "192.168.3.7"].includes(url.hostname)))) {
+    throw new Error("Use HTTPS em produção e uma origem sem caminho ou barra final.");
+  }
 }
 
 function record(value: unknown): value is Record<string, unknown> {
@@ -49,10 +68,10 @@ export function createNuvemshopClient(config: NuvemshopConfig, fetcher: typeof f
         ...init, signal, redirect: "error",
         headers: { Accept: "application/json", "User-Agent": config.userAgent, ...init.headers },
       });
-      if (!response.ok) throw new NuvemshopError(502, "A Nuvemshop recusou a solicitação. Inicie a autorização novamente.");
+      if (!response.ok) throw new NuvemshopError(502, "A Nuvemshop recusou a solicitação. Solicite conferência administrativa.");
       return await response.json();
     } catch (error) {
-      if (signal.aborted) throw new NuvemshopError(504, "A Nuvemshop demorou para responder. Inicie a autorização novamente.");
+      if (signal.aborted) throw new NuvemshopError(504, "A Nuvemshop demorou para responder. Solicite conferência administrativa.");
       if (error instanceof NuvemshopError) throw error;
       // Erros externos podem conter o código de autorização ou credenciais.
       throw new NuvemshopError(502, "Não foi possível obter uma resposta válida da Nuvemshop.");
@@ -77,8 +96,8 @@ export function createNuvemshopClient(config: NuvemshopConfig, fetcher: typeof f
   }
 
   async function discoverStoreId(code: string): Promise<string> {
-    if (config.demoStoreId) {
-      throw new NuvemshopError(409, "A loja demo já está configurada. Use a rota de autorização.");
+    if (config.storeId) {
+      throw new NuvemshopError(409, "A loja já está configurada. Use a rota de autorização.");
     }
     // O token desta descoberta é descartado sem consultar a API ou persistir credenciais.
     const token = await exchangeCode(code);
@@ -86,13 +105,13 @@ export function createNuvemshopClient(config: NuvemshopConfig, fetcher: typeof f
   }
 
   async function connect(code: string): Promise<LojaConectada> {
-    if (!config.demoStoreId) {
-      throw new NuvemshopError(409, "Configure NUVEMSHOP_DEMO_STORE_ID antes de conectar a loja.");
+    if (!config.storeId) {
+      throw new NuvemshopError(409, "Configure NUVEMSHOP_STORE_ID antes de conectar a loja.");
     }
     const token = await exchangeCode(code);
     const id = token.id;
-    if (id !== config.demoStoreId) {
-      throw new NuvemshopError(403, "Esta integração de desenvolvimento aceita somente a loja demo configurada.");
+    if (id !== config.storeId) {
+      throw new NuvemshopError(403, "A autorização não corresponde à loja configurada para esta instalação.");
     }
 
     const store = await requestJson(`https://api.nuvemshop.com.br/2025-03/${id}/store`, {

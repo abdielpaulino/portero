@@ -48,13 +48,13 @@ describe("baixa em duas etapas com banco e Nuvemshop simulados", () => {
       }); } finally { locked = false; }
     } };
   }
-  async function start(environment = "development", timeout = 100) {
+  async function start(environment = "development", timeout = 100, enabled = environment !== "production") {
     const client = createStockClient("PORTERO (dev@example.test)", async (url, init) => {
       calls.push({ url: String(url), init: init! }); return respond(url, init);
     }, timeout);
     const server = createApp({ jwtSecret: secret, environment,
       repository: { async buscarUsuariosPorEmail() { return []; }, async listarLojas() { return []; } },
-      stock: { demoStoreId: "67890", repository: database(), client } }).listen(0, "127.0.0.1");
+      stock: { storeId: "67890", enabled, repository: database(), client } }).listen(0, "127.0.0.1");
     servers.push(server); await once(server, "listening");
     const address = server.address(); assert.ok(address && typeof address !== "string");
     return `http://127.0.0.1:${address.port}`;
@@ -87,15 +87,31 @@ describe("baixa em duas etapas com banco e Nuvemshop simulados", () => {
     assert.deepEqual(JSON.parse(calls[1].init.body as string), { action: "variation", value: -2, id: 101 });
     assert.ok(!("estoqueNovo" in result.body)); assert.ok(!("requisicaoId" in result.body));
   });
-  it("exige sessão, vínculo, autor, loja demo e development", async () => {
+  it("exige sessão, vínculo, autor, loja configurada e liberação explícita", async () => {
     assert.equal((await request("", command, "")).status, 401);
-    assert.equal((await request("", command, cookie, production)).status, 404);
+    assert.equal((await request("", command, cookie, production)).status, 503);
     demoId = "999"; assert.equal((await request()).status, 403); demoId = "67890";
     const id = await reserve();
     assert.equal((await request(`/${id}/execute`, {}, otherCookie)).status, 404);
     const wrongStoreCookie = `${SESSION_COOKIE}=${await createSessionService(secret).issue({usuarioId:1,lojaId:20})}`;
     assert.equal((await request(`/${id}/execute`, {}, wrongStoreCookie)).status, 404);
     access = false; assert.equal((await execute(id)).status, 403); assert.equal(calls.length, 0);
+  });
+  it("a liberação explícita permite executar em produção mantendo as mesmas proteções", async () => {
+    const enabledProduction = await start("production", 100, true);
+    const created = await request("", command, cookie, enabledProduction);
+    assert.equal(created.status, 201); assert.equal(calls.length, 0);
+    const id = created.body.baixaId;
+    assert.equal((await execute(id, enabledProduction)).body.statusSincronizacao, "sincronizada");
+    assert.equal((await execute(id, enabledProduction)).body.repetida, true);
+    assert.equal(calls.length, 2);
+  });
+  it("desabilitar baixas preserva consulta e cancelamento de um registro ainda não enviado", async () => {
+    const id = await reserve();
+    assert.equal((await request(`/${id}`, {}, cookie, production, "GET")).body.statusSincronizacao, "registrada");
+    assert.equal((await execute(id, production)).status, 503);
+    assert.equal((await request(`/${id}/cancel`, {}, cookie, production)).body.statusSincronizacao, "rejeitada");
+    assert.equal(records.length, 1); assert.equal(calls.length, 0);
   });
   it("recusa dados substituídos, queries, IDs e contrato UUID antigo", async () => {
     for (const bad of [{ ...command, quantidade:0 },{ ...command, quantidade:1.2 },{ ...command, lojaId:10 },{ ...command, varianteId:"9007199254740992" }]) assert.equal((await request("",bad)).status,400);

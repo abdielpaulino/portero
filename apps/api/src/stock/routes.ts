@@ -4,17 +4,18 @@ import { NuvemshopError } from "../nuvemshop/oauth.js";
 import type { createStockClient } from "../nuvemshop/stock.js";
 import { cancelStockDecrease, decreaseStock, inspectStockDecrease, registerStockDecrease, type StockRepository } from "./service.js";
 
-export type StockOptions = { demoStoreId: string; repository: StockRepository; client: ReturnType<typeof createStockClient> };
+export type StockOptions = { storeId: string; enabled: boolean; repository: StockRepository; client: ReturnType<typeof createStockClient> };
 export function createStockRouter(jwtSecret: string, options?: StockOptions) {
   const router = Router();
   const sessions = createSessionService(jwtSecret);
   router.use((_req, res, next) => { res.setHeader("Cache-Control", "no-store"); next(); });
   router.use(sessions.authenticate);
   router.use((_req, res, next) => {
-    if (!options || !/^[1-9]\d*$/.test(options.demoStoreId)) { res.status(503).json({ message: "Configure a loja demo para operar o estoque." }); return; }
+    if (!options || !/^[1-9]\d*$/.test(options.storeId)) { res.status(503).json({ message: "Configure a loja desta instalação para operar o estoque." }); return; }
     next();
   });
   router.post("/", async (req, res, next) => {
+    if (!options!.enabled) { res.status(503).json({ message: "Baixas desabilitadas nesta instalação. Consulte o responsável antes de registrar a venda." }); return; }
     const body: unknown = req.body;
     if (Object.keys(req.query).length || req.get("Idempotency-Key") || typeof body !== "object" || body === null || Array.isArray(body)
       || Object.keys(body).some(key => !["produtoId", "varianteId", "quantidade"].includes(key))) {
@@ -27,7 +28,7 @@ export function createStockRouter(jwtSecret: string, options?: StockOptions) {
       res.status(400).json({ message: "Informe IDs válidos e quantidade inteira positiva." }); return;
     }
     try {
-      const result = await registerStockDecrease(options!.repository, options!.demoStoreId, res.locals.auth as AuthContext, { produtoId, varianteId, quantidade });
+      const result = await registerStockDecrease(options!.repository, options!.storeId, res.locals.auth as AuthContext, { produtoId, varianteId, quantidade });
       res.status(result.httpStatus).json(result.body);
     } catch (error) { handle(error, res, next); }
   });
@@ -41,17 +42,18 @@ export function createStockRouter(jwtSecret: string, options?: StockOptions) {
   });
   router.get("/:id", async (req, res, next) => {
     try {
-      const result = await inspectStockDecrease(options!.repository, options!.demoStoreId, res.locals.auth as AuthContext, Number(req.params.id));
+      const result = await inspectStockDecrease(options!.repository, options!.storeId, res.locals.auth as AuthContext, Number(req.params.id));
       res.status(result.httpStatus).json(result.body);
     } catch (error) { handle(error, res, next); }
   });
   for (const action of ["execute", "cancel"] as const) router.post(`/:id/${action}`, async (req, res, next) => {
+    if (action === "execute" && !options!.enabled) { res.status(503).json({ message: "Baixas desabilitadas nesta instalação. Consulte o histórico." }); return; }
     try {
       const auth = res.locals.auth as AuthContext;
       const id = Number(req.params.id);
       const result = action === "execute"
-        ? await decreaseStock(options!.repository, options!.client, options!.demoStoreId, auth, id)
-        : await cancelStockDecrease(options!.repository, options!.demoStoreId, auth, id);
+        ? await decreaseStock(options!.repository, options!.client, options!.storeId, auth, id)
+        : await cancelStockDecrease(options!.repository, options!.storeId, auth, id);
       res.status(result.httpStatus).json(result.body);
     } catch (error) { handle(error, res, next); }
   });

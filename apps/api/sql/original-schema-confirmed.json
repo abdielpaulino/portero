@@ -1,0 +1,1562 @@
+{
+  "finalidade": "Referencia de estrutura comprovada; nao e SQL nem migracao executavel",
+  "fonte": {
+    "arquivo": "Supabase Snippet Untitled query (1).csv",
+    "sha256": "b397c1bf039274964f6862447fb25fa20b9740fb61fa95966af71796f620d227",
+    "linhas_metadados": 327,
+    "contexto": {
+      "ctype": "en_US.UTF-8",
+      "versao": "17.11",
+      "encoding": "UTF8",
+      "collation": "en_US.UTF-8",
+      "observacao": "Permissoes observadas no SQL Editor nao comprovam as da conexao da API.",
+      "search_path": "\"\\$user\", public, extensions",
+      "versao_numero": "170011"
+    }
+  },
+  "totais": {
+    "tabelas": 4,
+    "colunas": 28,
+    "constraints": 12,
+    "indices": 7,
+    "sequencias": 4,
+    "politicas": 0,
+    "triggers_proprios": 0,
+    "regras": 0
+  },
+  "tabelas": [
+    {
+      "nome": "public.lojas",
+      "propriedades": {
+        "tipo_relacao": "r",
+        "proprietario": "postgres",
+        "persistencia": "p",
+        "rls": true,
+        "rls_forcada": false,
+        "opcoes": null,
+        "replica_identity": "d",
+        "politicas": 0,
+        "triggers_proprios": 0
+      },
+      "colunas": [
+        {
+          "nome": "id",
+          "definicao": {
+            "tipo": "integer",
+            "ordem": 1,
+            "gerada": "",
+            "storage": "p",
+            "not_null": true,
+            "collation": null,
+            "identidade": "d",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "nuvemshop_store_id",
+          "definicao": {
+            "tipo": "text",
+            "ordem": 2,
+            "gerada": "",
+            "storage": "x",
+            "not_null": true,
+            "collation": "pg_catalog.\"default\"",
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "access_token",
+          "definicao": {
+            "tipo": "text",
+            "ordem": 3,
+            "gerada": "",
+            "storage": "x",
+            "not_null": true,
+            "collation": "pg_catalog.\"default\"",
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "scope",
+          "definicao": {
+            "tipo": "text",
+            "ordem": 4,
+            "gerada": "",
+            "storage": "x",
+            "not_null": false,
+            "collation": "pg_catalog.\"default\"",
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "nome_loja",
+          "definicao": {
+            "tipo": "text",
+            "ordem": 5,
+            "gerada": "",
+            "storage": "x",
+            "not_null": true,
+            "collation": "pg_catalog.\"default\"",
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "status",
+          "definicao": {
+            "tipo": "text",
+            "ordem": 6,
+            "gerada": "",
+            "storage": "x",
+            "not_null": true,
+            "collation": "pg_catalog.\"default\"",
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": true,
+            "possui_acl_propria": false,
+            "default_ou_expressao": "'pendente'::text"
+          }
+        },
+        {
+          "nome": "criado_em",
+          "definicao": {
+            "tipo": "timestamp with time zone",
+            "ordem": 7,
+            "gerada": "",
+            "storage": "p",
+            "not_null": true,
+            "collation": null,
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": true,
+            "possui_acl_propria": false,
+            "default_ou_expressao": "now()"
+          }
+        }
+      ],
+      "constraints": [
+        {
+          "nome": "lojas_nuvemshop_store_id_key",
+          "definicao": {
+            "tipo": "u",
+            "adiavel": false,
+            "validada": true,
+            "definicao": "UNIQUE (nuvemshop_store_id)",
+            "inicialmente_adiada": false
+          }
+        },
+        {
+          "nome": "lojas_pkey",
+          "definicao": {
+            "tipo": "p",
+            "adiavel": false,
+            "validada": true,
+            "definicao": "PRIMARY KEY (id)",
+            "inicialmente_adiada": false
+          }
+        }
+      ],
+      "indices": [
+        {
+          "nome": "lojas_nuvemshop_store_id_key",
+          "definicao": {
+            "unico": true,
+            "pronto": true,
+            "valido": true,
+            "imediato": true,
+            "primario": false,
+            "definicao": "CREATE UNIQUE INDEX lojas_nuvemshop_store_id_key ON public.lojas USING btree (nuvemshop_store_id)",
+            "clusterizado": false,
+            "replica_identity": false
+          }
+        },
+        {
+          "nome": "lojas_pkey",
+          "definicao": {
+            "unico": true,
+            "pronto": true,
+            "valido": true,
+            "imediato": true,
+            "primario": true,
+            "definicao": "CREATE UNIQUE INDEX lojas_pkey ON public.lojas USING btree (id)",
+            "clusterizado": false,
+            "replica_identity": false
+          }
+        }
+      ],
+      "sequencia_id": {
+        "tipo": "integer",
+        "cache": 1,
+        "ciclo": false,
+        "maximo": 2147483647,
+        "minimo": 1,
+        "sequencia": "public.lojas_id_seq",
+        "incremento": 1,
+        "proprietario": "postgres",
+        "inicio_definido": 1
+      }
+    },
+    {
+      "nome": "public.usuarios_app",
+      "propriedades": {
+        "tipo_relacao": "r",
+        "proprietario": "postgres",
+        "persistencia": "p",
+        "rls": true,
+        "rls_forcada": false,
+        "opcoes": null,
+        "replica_identity": "d",
+        "politicas": 0,
+        "triggers_proprios": 0
+      },
+      "colunas": [
+        {
+          "nome": "id",
+          "definicao": {
+            "tipo": "integer",
+            "ordem": 1,
+            "gerada": "",
+            "storage": "p",
+            "not_null": true,
+            "collation": null,
+            "identidade": "d",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "loja_id",
+          "definicao": {
+            "tipo": "integer",
+            "ordem": 2,
+            "gerada": "",
+            "storage": "p",
+            "not_null": true,
+            "collation": null,
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "nome",
+          "definicao": {
+            "tipo": "text",
+            "ordem": 3,
+            "gerada": "",
+            "storage": "x",
+            "not_null": true,
+            "collation": "pg_catalog.\"default\"",
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "email",
+          "definicao": {
+            "tipo": "text",
+            "ordem": 4,
+            "gerada": "",
+            "storage": "x",
+            "not_null": true,
+            "collation": "pg_catalog.\"default\"",
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "senha_hash",
+          "definicao": {
+            "tipo": "text",
+            "ordem": 5,
+            "gerada": "",
+            "storage": "x",
+            "not_null": true,
+            "collation": "pg_catalog.\"default\"",
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "criado_em",
+          "definicao": {
+            "tipo": "timestamp with time zone",
+            "ordem": 6,
+            "gerada": "",
+            "storage": "p",
+            "not_null": true,
+            "collation": null,
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": true,
+            "possui_acl_propria": false,
+            "default_ou_expressao": "now()"
+          }
+        }
+      ],
+      "constraints": [
+        {
+          "nome": "usuarios_app_email_por_loja",
+          "definicao": {
+            "tipo": "u",
+            "adiavel": false,
+            "validada": true,
+            "definicao": "UNIQUE (loja_id, email)",
+            "inicialmente_adiada": false
+          }
+        },
+        {
+          "nome": "usuarios_app_loja_id_fkey",
+          "definicao": {
+            "tipo": "f",
+            "adiavel": false,
+            "validada": true,
+            "definicao": "FOREIGN KEY (loja_id) REFERENCES lojas(id)",
+            "inicialmente_adiada": false
+          }
+        },
+        {
+          "nome": "usuarios_app_pkey",
+          "definicao": {
+            "tipo": "p",
+            "adiavel": false,
+            "validada": true,
+            "definicao": "PRIMARY KEY (id)",
+            "inicialmente_adiada": false
+          }
+        }
+      ],
+      "indices": [
+        {
+          "nome": "usuarios_app_email_por_loja",
+          "definicao": {
+            "unico": true,
+            "pronto": true,
+            "valido": true,
+            "imediato": true,
+            "primario": false,
+            "definicao": "CREATE UNIQUE INDEX usuarios_app_email_por_loja ON public.usuarios_app USING btree (loja_id, email)",
+            "clusterizado": false,
+            "replica_identity": false
+          }
+        },
+        {
+          "nome": "usuarios_app_pkey",
+          "definicao": {
+            "unico": true,
+            "pronto": true,
+            "valido": true,
+            "imediato": true,
+            "primario": true,
+            "definicao": "CREATE UNIQUE INDEX usuarios_app_pkey ON public.usuarios_app USING btree (id)",
+            "clusterizado": false,
+            "replica_identity": false
+          }
+        }
+      ],
+      "sequencia_id": {
+        "tipo": "integer",
+        "cache": 1,
+        "ciclo": false,
+        "maximo": 2147483647,
+        "minimo": 1,
+        "sequencia": "public.usuarios_app_id_seq",
+        "incremento": 1,
+        "proprietario": "postgres",
+        "inicio_definido": 1
+      }
+    },
+    {
+      "nome": "public.acessos_permitidos",
+      "propriedades": {
+        "tipo_relacao": "r",
+        "proprietario": "postgres",
+        "persistencia": "p",
+        "rls": true,
+        "rls_forcada": false,
+        "opcoes": null,
+        "replica_identity": "d",
+        "politicas": 0,
+        "triggers_proprios": 0
+      },
+      "colunas": [
+        {
+          "nome": "id",
+          "definicao": {
+            "tipo": "integer",
+            "ordem": 1,
+            "gerada": "",
+            "storage": "p",
+            "not_null": true,
+            "collation": null,
+            "identidade": "d",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "email",
+          "definicao": {
+            "tipo": "text",
+            "ordem": 2,
+            "gerada": "",
+            "storage": "x",
+            "not_null": true,
+            "collation": "pg_catalog.\"default\"",
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "loja_id",
+          "definicao": {
+            "tipo": "integer",
+            "ordem": 3,
+            "gerada": "",
+            "storage": "p",
+            "not_null": true,
+            "collation": null,
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "plano",
+          "definicao": {
+            "tipo": "text",
+            "ordem": 4,
+            "gerada": "",
+            "storage": "x",
+            "not_null": true,
+            "collation": "pg_catalog.\"default\"",
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "pago_ate",
+          "definicao": {
+            "tipo": "date",
+            "ordem": 5,
+            "gerada": "",
+            "storage": "p",
+            "not_null": false,
+            "collation": null,
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "criado_em",
+          "definicao": {
+            "tipo": "timestamp with time zone",
+            "ordem": 6,
+            "gerada": "",
+            "storage": "p",
+            "not_null": true,
+            "collation": null,
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": true,
+            "possui_acl_propria": false,
+            "default_ou_expressao": "now()"
+          }
+        }
+      ],
+      "constraints": [
+        {
+          "nome": "acessos_permitidos_loja_id_fkey",
+          "definicao": {
+            "tipo": "f",
+            "adiavel": false,
+            "validada": true,
+            "definicao": "FOREIGN KEY (loja_id) REFERENCES lojas(id)",
+            "inicialmente_adiada": false
+          }
+        },
+        {
+          "nome": "acessos_permitidos_loja_id_key",
+          "definicao": {
+            "tipo": "u",
+            "adiavel": false,
+            "validada": true,
+            "definicao": "UNIQUE (loja_id)",
+            "inicialmente_adiada": false
+          }
+        },
+        {
+          "nome": "acessos_permitidos_pkey",
+          "definicao": {
+            "tipo": "p",
+            "adiavel": false,
+            "validada": true,
+            "definicao": "PRIMARY KEY (id)",
+            "inicialmente_adiada": false
+          }
+        }
+      ],
+      "indices": [
+        {
+          "nome": "acessos_permitidos_loja_id_key",
+          "definicao": {
+            "unico": true,
+            "pronto": true,
+            "valido": true,
+            "imediato": true,
+            "primario": false,
+            "definicao": "CREATE UNIQUE INDEX acessos_permitidos_loja_id_key ON public.acessos_permitidos USING btree (loja_id)",
+            "clusterizado": false,
+            "replica_identity": false
+          }
+        },
+        {
+          "nome": "acessos_permitidos_pkey",
+          "definicao": {
+            "unico": true,
+            "pronto": true,
+            "valido": true,
+            "imediato": true,
+            "primario": true,
+            "definicao": "CREATE UNIQUE INDEX acessos_permitidos_pkey ON public.acessos_permitidos USING btree (id)",
+            "clusterizado": false,
+            "replica_identity": false
+          }
+        }
+      ],
+      "sequencia_id": {
+        "tipo": "integer",
+        "cache": 1,
+        "ciclo": false,
+        "maximo": 2147483647,
+        "minimo": 1,
+        "sequencia": "public.acessos_permitidos_id_seq",
+        "incremento": 1,
+        "proprietario": "postgres",
+        "inicio_definido": 1
+      }
+    },
+    {
+      "nome": "public.baixas_estoque",
+      "propriedades": {
+        "tipo_relacao": "r",
+        "proprietario": "postgres",
+        "persistencia": "p",
+        "rls": true,
+        "rls_forcada": false,
+        "opcoes": null,
+        "replica_identity": "d",
+        "politicas": 0,
+        "triggers_proprios": 0
+      },
+      "colunas": [
+        {
+          "nome": "id",
+          "definicao": {
+            "tipo": "integer",
+            "ordem": 1,
+            "gerada": "",
+            "storage": "p",
+            "not_null": true,
+            "collation": null,
+            "identidade": "d",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "loja_id",
+          "definicao": {
+            "tipo": "integer",
+            "ordem": 2,
+            "gerada": "",
+            "storage": "p",
+            "not_null": true,
+            "collation": null,
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "usuario_id",
+          "definicao": {
+            "tipo": "integer",
+            "ordem": 3,
+            "gerada": "",
+            "storage": "p",
+            "not_null": true,
+            "collation": null,
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "produto_id",
+          "definicao": {
+            "tipo": "text",
+            "ordem": 4,
+            "gerada": "",
+            "storage": "x",
+            "not_null": true,
+            "collation": "pg_catalog.\"default\"",
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "variant_id",
+          "definicao": {
+            "tipo": "text",
+            "ordem": 5,
+            "gerada": "",
+            "storage": "x",
+            "not_null": true,
+            "collation": "pg_catalog.\"default\"",
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "sku",
+          "definicao": {
+            "tipo": "text",
+            "ordem": 6,
+            "gerada": "",
+            "storage": "x",
+            "not_null": false,
+            "collation": "pg_catalog.\"default\"",
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "quantidade_baixada",
+          "definicao": {
+            "tipo": "integer",
+            "ordem": 7,
+            "gerada": "",
+            "storage": "p",
+            "not_null": true,
+            "collation": null,
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": false,
+            "possui_acl_propria": false,
+            "default_ou_expressao": null
+          }
+        },
+        {
+          "nome": "status_sincronizacao",
+          "definicao": {
+            "tipo": "text",
+            "ordem": 8,
+            "gerada": "",
+            "storage": "x",
+            "not_null": true,
+            "collation": "pg_catalog.\"default\"",
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": true,
+            "possui_acl_propria": false,
+            "default_ou_expressao": "'pendente'::text"
+          }
+        },
+        {
+          "nome": "criado_em",
+          "definicao": {
+            "tipo": "timestamp with time zone",
+            "ordem": 9,
+            "gerada": "",
+            "storage": "p",
+            "not_null": true,
+            "collation": null,
+            "identidade": "",
+            "schema_tipo": "pg_catalog",
+            "default_presente": true,
+            "possui_acl_propria": false,
+            "default_ou_expressao": "now()"
+          }
+        }
+      ],
+      "constraints": [
+        {
+          "nome": "baixas_estoque_loja_id_fkey",
+          "definicao": {
+            "tipo": "f",
+            "adiavel": false,
+            "validada": true,
+            "definicao": "FOREIGN KEY (loja_id) REFERENCES lojas(id)",
+            "inicialmente_adiada": false
+          }
+        },
+        {
+          "nome": "baixas_estoque_pkey",
+          "definicao": {
+            "tipo": "p",
+            "adiavel": false,
+            "validada": true,
+            "definicao": "PRIMARY KEY (id)",
+            "inicialmente_adiada": false
+          }
+        },
+        {
+          "nome": "baixas_estoque_quantidade_baixada_check",
+          "definicao": {
+            "tipo": "c",
+            "adiavel": false,
+            "validada": true,
+            "definicao": "CHECK (quantidade_baixada > 0)",
+            "inicialmente_adiada": false
+          }
+        },
+        {
+          "nome": "baixas_estoque_usuario_id_fkey",
+          "definicao": {
+            "tipo": "f",
+            "adiavel": false,
+            "validada": true,
+            "definicao": "FOREIGN KEY (usuario_id) REFERENCES usuarios_app(id)",
+            "inicialmente_adiada": false
+          }
+        }
+      ],
+      "indices": [
+        {
+          "nome": "baixas_estoque_pkey",
+          "definicao": {
+            "unico": true,
+            "pronto": true,
+            "valido": true,
+            "imediato": true,
+            "primario": true,
+            "definicao": "CREATE UNIQUE INDEX baixas_estoque_pkey ON public.baixas_estoque USING btree (id)",
+            "clusterizado": false,
+            "replica_identity": false
+          }
+        }
+      ],
+      "sequencia_id": {
+        "tipo": "integer",
+        "cache": 1,
+        "ciclo": false,
+        "maximo": 2147483647,
+        "minimo": 1,
+        "sequencia": "public.baixas_estoque_id_seq",
+        "incremento": 1,
+        "proprietario": "postgres",
+        "inicio_definido": 1
+      }
+    }
+  ],
+  "permissoes": {
+    "tabelas": [
+      {
+        "objeto_e_papel": "acessos_permitidos.postgres",
+        "privilegios": [
+          "DELETE",
+          "INSERT",
+          "MAINTAIN",
+          "REFERENCES",
+          "SELECT",
+          "TRIGGER",
+          "TRUNCATE",
+          "UPDATE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "acl_explicita": true,
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "acessos_permitidos.service_role",
+        "privilegios": [
+          "DELETE",
+          "INSERT",
+          "MAINTAIN",
+          "REFERENCES",
+          "SELECT",
+          "TRIGGER",
+          "TRUNCATE",
+          "UPDATE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "acl_explicita": true,
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "baixas_estoque.postgres",
+        "privilegios": [
+          "DELETE",
+          "INSERT",
+          "MAINTAIN",
+          "REFERENCES",
+          "SELECT",
+          "TRIGGER",
+          "TRUNCATE",
+          "UPDATE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "acl_explicita": true,
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "baixas_estoque.service_role",
+        "privilegios": [
+          "DELETE",
+          "INSERT",
+          "MAINTAIN",
+          "REFERENCES",
+          "SELECT",
+          "TRIGGER",
+          "TRUNCATE",
+          "UPDATE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "acl_explicita": true,
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "lojas.postgres",
+        "privilegios": [
+          "DELETE",
+          "INSERT",
+          "MAINTAIN",
+          "REFERENCES",
+          "SELECT",
+          "TRIGGER",
+          "TRUNCATE",
+          "UPDATE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "acl_explicita": true,
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "lojas.service_role",
+        "privilegios": [
+          "DELETE",
+          "INSERT",
+          "MAINTAIN",
+          "REFERENCES",
+          "SELECT",
+          "TRIGGER",
+          "TRUNCATE",
+          "UPDATE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "acl_explicita": true,
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "usuarios_app.postgres",
+        "privilegios": [
+          "DELETE",
+          "INSERT",
+          "MAINTAIN",
+          "REFERENCES",
+          "SELECT",
+          "TRIGGER",
+          "TRUNCATE",
+          "UPDATE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "acl_explicita": true,
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "usuarios_app.service_role",
+        "privilegios": [
+          "DELETE",
+          "INSERT",
+          "MAINTAIN",
+          "REFERENCES",
+          "SELECT",
+          "TRIGGER",
+          "TRUNCATE",
+          "UPDATE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "acl_explicita": true,
+            "pode_conceder": false
+          }
+        ]
+      }
+    ],
+    "sequencias": [
+      {
+        "objeto_e_papel": "public.acessos_permitidos_id_seq.anon",
+        "privilegios": [
+          "SELECT",
+          "UPDATE",
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.acessos_permitidos_id_seq.authenticated",
+        "privilegios": [
+          "SELECT",
+          "UPDATE",
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.acessos_permitidos_id_seq.postgres",
+        "privilegios": [
+          "SELECT",
+          "UPDATE",
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.acessos_permitidos_id_seq.service_role",
+        "privilegios": [
+          "SELECT",
+          "UPDATE",
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.baixas_estoque_id_seq.anon",
+        "privilegios": [
+          "SELECT",
+          "UPDATE",
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.baixas_estoque_id_seq.authenticated",
+        "privilegios": [
+          "SELECT",
+          "UPDATE",
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.baixas_estoque_id_seq.postgres",
+        "privilegios": [
+          "SELECT",
+          "UPDATE",
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.baixas_estoque_id_seq.service_role",
+        "privilegios": [
+          "SELECT",
+          "UPDATE",
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.lojas_id_seq.anon",
+        "privilegios": [
+          "SELECT",
+          "UPDATE",
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.lojas_id_seq.authenticated",
+        "privilegios": [
+          "SELECT",
+          "UPDATE",
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.lojas_id_seq.postgres",
+        "privilegios": [
+          "SELECT",
+          "UPDATE",
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.lojas_id_seq.service_role",
+        "privilegios": [
+          "SELECT",
+          "UPDATE",
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.usuarios_app_id_seq.anon",
+        "privilegios": [
+          "SELECT",
+          "UPDATE",
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.usuarios_app_id_seq.authenticated",
+        "privilegios": [
+          "SELECT",
+          "UPDATE",
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.usuarios_app_id_seq.postgres",
+        "privilegios": [
+          "SELECT",
+          "UPDATE",
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.usuarios_app_id_seq.service_role",
+        "privilegios": [
+          "SELECT",
+          "UPDATE",
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "postgres",
+            "pode_conceder": false
+          }
+        ]
+      }
+    ],
+    "schema_public": [
+      {
+        "objeto_e_papel": "public.anon",
+        "privilegios": [
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "pg_database_owner",
+            "proprietario": "pg_database_owner",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.authenticated",
+        "privilegios": [
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "pg_database_owner",
+            "proprietario": "pg_database_owner",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.pg_database_owner",
+        "privilegios": [
+          "CREATE",
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "pg_database_owner",
+            "proprietario": "pg_database_owner",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.postgres",
+        "privilegios": [
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "pg_database_owner",
+            "proprietario": "pg_database_owner",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.PUBLIC",
+        "privilegios": [
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "pg_database_owner",
+            "proprietario": "pg_database_owner",
+            "pode_conceder": false
+          }
+        ]
+      },
+      {
+        "objeto_e_papel": "public.service_role",
+        "privilegios": [
+          "USAGE"
+        ],
+        "detalhes": [
+          {
+            "concedente": "pg_database_owner",
+            "proprietario": "pg_database_owner",
+            "pode_conceder": false
+          }
+        ]
+      }
+    ]
+  },
+  "privilegios_padrao_apenas_referencia": [
+    {
+      "criador_tipo_papel": "postgres.f.anon",
+      "privilegios": [
+        "EXECUTE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "postgres.f.authenticated",
+      "privilegios": [
+        "EXECUTE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "postgres.f.postgres",
+      "privilegios": [
+        "EXECUTE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "postgres.f.service_role",
+      "privilegios": [
+        "EXECUTE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "postgres.r.anon",
+      "privilegios": [
+        "DELETE",
+        "INSERT",
+        "MAINTAIN",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "postgres.r.authenticated",
+      "privilegios": [
+        "DELETE",
+        "INSERT",
+        "MAINTAIN",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "postgres.r.postgres",
+      "privilegios": [
+        "DELETE",
+        "INSERT",
+        "MAINTAIN",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "postgres.r.service_role",
+      "privilegios": [
+        "DELETE",
+        "INSERT",
+        "MAINTAIN",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "postgres.S.anon",
+      "privilegios": [
+        "SELECT",
+        "UPDATE",
+        "USAGE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "postgres.S.authenticated",
+      "privilegios": [
+        "SELECT",
+        "UPDATE",
+        "USAGE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "postgres.S.postgres",
+      "privilegios": [
+        "SELECT",
+        "UPDATE",
+        "USAGE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "postgres.S.service_role",
+      "privilegios": [
+        "SELECT",
+        "UPDATE",
+        "USAGE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "supabase_admin.f.anon",
+      "privilegios": [
+        "EXECUTE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "supabase_admin.f.authenticated",
+      "privilegios": [
+        "EXECUTE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "supabase_admin.f.postgres",
+      "privilegios": [
+        "EXECUTE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "supabase_admin.f.service_role",
+      "privilegios": [
+        "EXECUTE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "supabase_admin.r.anon",
+      "privilegios": [
+        "DELETE",
+        "INSERT",
+        "MAINTAIN",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "supabase_admin.r.authenticated",
+      "privilegios": [
+        "DELETE",
+        "INSERT",
+        "MAINTAIN",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "supabase_admin.r.postgres",
+      "privilegios": [
+        "DELETE",
+        "INSERT",
+        "MAINTAIN",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "supabase_admin.r.service_role",
+      "privilegios": [
+        "DELETE",
+        "INSERT",
+        "MAINTAIN",
+        "REFERENCES",
+        "SELECT",
+        "TRIGGER",
+        "TRUNCATE",
+        "UPDATE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "supabase_admin.S.anon",
+      "privilegios": [
+        "SELECT",
+        "UPDATE",
+        "USAGE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "supabase_admin.S.authenticated",
+      "privilegios": [
+        "SELECT",
+        "UPDATE",
+        "USAGE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "supabase_admin.S.postgres",
+      "privilegios": [
+        "SELECT",
+        "UPDATE",
+        "USAGE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    },
+    {
+      "criador_tipo_papel": "supabase_admin.S.service_role",
+      "privilegios": [
+        "SELECT",
+        "UPDATE",
+        "USAGE"
+      ],
+      "escopo": "public",
+      "pode_conceder": false
+    }
+  ],
+  "fora_do_escopo": [
+    "public.usuarios_lojas",
+    "usuarios_app_email_global",
+    "baixas_estoque.requisicao_id",
+    "baixas_estoque.estoque_anterior",
+    "baixas_estoque.estoque_novo"
+  ],
+  "pendencias": [
+    "Dump schema-only real para revisao",
+    "Metadados do destino novo",
+    "Plano especifico de permissoes do destino",
+    "Validacao pos-aplicacao autorizada"
+  ]
+}

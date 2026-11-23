@@ -69,7 +69,7 @@ export async function createInitialUser(pool: Pool, input: InitialUser) {
     }
     const loja = stores.rows[0];
     if (input.expectedStoreId && loja.nuvemshop_store_id !== input.expectedStoreId) {
-      throw new SetupError("A loja do banco não corresponde a NUVEMSHOP_DEMO_STORE_ID.");
+      throw new SetupError("A loja do banco não corresponde a NUVEMSHOP_STORE_ID.");
     }
     stage = "verificação do e-mail";
     const duplicate = await client.query(
@@ -129,13 +129,22 @@ async function main() {
     if (!stdin.isTTY || !stdout.isTTY) throw new SetupError("Execute em um terminal interativo, sem redirecionar a entrada ou a saída.");
     // Um ambiente herdado do shell não pode trocar o banco definido no .env da API.
     const env: Record<string, string> = {};
-    const loaded = config({ path: fileURLToPath(new URL("../../.env", import.meta.url)), processEnv: env });
-    if (loaded.error || !env.DATABASE_URL?.trim()) throw new SetupError("Configure DATABASE_URL em apps/api/.env.");
-    if (env.NODE_ENV !== "development") throw new SetupError("Este script é permitido somente com NODE_ENV=development em apps/api/.env.");
+    const fileArg = process.argv.indexOf("--env-file");
+    const selectedFile = fileArg >= 0 ? process.argv[fileArg + 1] : undefined;
+    if (fileArg >= 0 && (!selectedFile || selectedFile.startsWith("--"))) throw new SetupError("Informe o caminho de --env-file.");
+    const envPath = selectedFile ? resolve(selectedFile) : fileURLToPath(new URL("../../.env", import.meta.url));
+    const loaded = config({ path: envPath, processEnv: env });
+    if (loaded.error || !env.DATABASE_URL?.trim()) throw new SetupError("Configure DATABASE_URL no arquivo administrativo selecionado.");
+    if (!["development", "production"].includes(env.NODE_ENV ?? "") || (env.NODE_ENV === "production" && !selectedFile)) {
+      throw new SetupError("Em produção, selecione explicitamente o arquivo da instalação com --env-file.");
+    }
+    if (!/^[1-9]\d*$/.test(env.NUVEMSHOP_STORE_ID ?? "")) throw new SetupError("Configure NUVEMSHOP_STORE_ID no arquivo selecionado.");
     const terminal = createInterface({ input: stdin, output: stdout });
     let nome: string;
     let email: string;
     try {
+      const confirmed = await terminal.question("Confirme o NUVEMSHOP_STORE_ID do arquivo selecionado: ");
+      if (confirmed.trim() !== env.NUVEMSHOP_STORE_ID) throw new SetupError("Loja não confirmada. Nenhuma conta foi criada.");
       nome = await terminal.question("Nome: ");
       email = await terminal.question("E-mail: ");
     } finally {
@@ -145,7 +154,7 @@ async function main() {
     confirmacao = await readHiddenPassword("Confirme a senha (entrada oculta): ");
     if (senha !== confirmacao) throw new SetupError("As senhas não coincidem. Nenhuma conta foi criada.");
     pool = new Pool({ connectionString: env.DATABASE_URL, max: 1, connectionTimeoutMillis: 10_000, statement_timeout: 10_000 });
-    const result = await createInitialUser(pool, { nome, email, senha, expectedStoreId: env.NUVEMSHOP_DEMO_STORE_ID?.trim() });
+    const result = await createInitialUser(pool, { nome, email, senha, expectedStoreId: env.NUVEMSHOP_STORE_ID?.trim() });
     stdout.write(`Conta criada. Usuário ID: ${result.usuarioId}; loja ID: ${result.lojaId}.\n`);
   } catch (error) {
     console.error(error instanceof SetupError ? error.message : "Não foi possível criar a conta. Confira a configuração do banco.");

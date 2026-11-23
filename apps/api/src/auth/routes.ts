@@ -7,7 +7,7 @@ import {
   SESSION_COOKIE, SESSION_SECONDS, type AuthContext,
 } from "./session.js";
 
-export function createAuthRouter(repository: AuthRepository, jwtSecret: string, secureCookies: boolean) {
+export function createAuthRouter(repository: AuthRepository, jwtSecret: string, secureCookies: boolean, stockEnabled = false) {
   const router = Router();
   const sessions = createSessionService(jwtSecret);
   const dummyHash = hashSync(randomBytes(32).toString("hex"), 10);
@@ -66,7 +66,7 @@ export function createAuthRouter(repository: AuthRepository, jwtSecret: string, 
         res.status(403).json({ message: "Loja indisponível para esta conta." });
         return;
       }
-      res.json({ usuarioId: auth.usuarioId, loja });
+      res.json({ usuarioId: auth.usuarioId, loja, baixasHabilitadas: stockEnabled });
     } catch (error) {
       next(error);
     }
