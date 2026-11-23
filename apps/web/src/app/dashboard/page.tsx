@@ -1,257 +1,90 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState } from "react";
+import Link from "next/link";
 import TabBar from "../components/TabBar";
 import styles from "./dashboard.module.css";
-
-type StatusPedido = "completed" | "pending" | "paused";
-
-interface PedidoRecente {
-  id: string;
-  numero: string;
-  valor: number;
-  itens: number;
-  status: StatusPedido;
-}
-
-interface Movimentacao {
-  dia: string;
-  valor: number;
-}
-
-interface DashboardData {
-  sincronizado: boolean;
-  vendasDoMes: number;
-  variacaoVendas: number;
-  totalPedidos: number;
-  alertaRupturaPercentual: number;
-  movimentacoes: Movimentacao[];
-  pedidosRecentes: PedidoRecente[];
-}
-
-const STATUS_LABEL: Record<StatusPedido, string> = {
-  completed: "COMPLETED",
-  pending: "PENDING",
-  paused: "PAUSED",
-};
-
-const DIAS_PLACEHOLDER = ["M", "T", "W", "T", "F", "S", "S"];
-
-function formatarMoeda(valor: number) {
-  return valor.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
-}
+import { carregarDashboard, type DashboardData } from "./data";
+import { statusLabel } from "../history/data";
+import CommercialDashboard from "./CommercialDashboard";
+import { carregarSessao } from "../auth/session";
+import { usePreferences } from "../settings/usePreferences";
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [erro, setErro] = useState(false);
-
-  const carregouRef = useRef(false);
-
-  const carregarDashboard = useCallback(async () => {
-    // Os indicadores dependem da implementação de /api/dashboard.
-    const res = await fetch("/api/dashboard");
-
-    if (!res.ok) {
-      throw new Error(`API /api/dashboard respondeu ${res.status}`);
-    }
-
-    const json: DashboardData = await res.json();
-    setData(json);
+  const [error, setError] = useState("");
+  const [revision, setRevision] = useState(0);
+  const [settingsEnabled, setSettingsEnabled] = useState(false);
+  const { preferences, error: preferencesError } = usePreferences(settingsEnabled);
+  useEffect(() => {
+    const controller = new AbortController();
+    void carregarSessao(undefined, { signal: controller.signal }).then(session => { if (!controller.signal.aborted) setSettingsEnabled(session?.configuracoesHabilitadas === true); }).catch(() => {});
+    return () => controller.abort();
   }, []);
+  useEffect(() => {
+    const controller = new AbortController();
+    void carregarDashboard(controller.signal, fetch, preferences?.limiteRuptura ?? 0).then(result => {
+      if (!controller.signal.aborted) setData(result);
+    }).catch((failure: unknown) => {
+      if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : "Não foi possível carregar os indicadores.");
+    }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+    return () => controller.abort();
+  }, [revision, preferences?.limiteRuptura]);
 
   useEffect(() => {
-    if (carregouRef.current) return;
-    carregouRef.current = true;
-
-    (async () => {
-      setLoading(true);
-      setErro(false);
-      try {
-        await carregarDashboard();
-      } catch (err) {
-        console.error("Erro ao carregar dashboard:", err);
-        setErro(true);
-      } finally {
-        setLoading(false);
+    function refresh() {
+      if (!loading && document.visibilityState === "visible") {
+        setData(null); setError(""); setLoading(true); setRevision(current => current + 1);
       }
-    })();
-  }, [carregarDashboard]);
+    }
+    window.addEventListener("focus", refresh); document.addEventListener("visibilitychange", refresh);
+    return () => { window.removeEventListener("focus", refresh); document.removeEventListener("visibilitychange", refresh); };
+  }, [loading]);
 
+  function atualizar() { setData(null); setError(""); setLoading(true); setRevision(current => current + 1); }
   useEffect(() => {
-    if (!erro) return;
-
-    const timer = setTimeout(async () => {
-      try {
-        await carregarDashboard();
-        setErro(false);
-      } catch (err) {
-        console.error("Erro ao tentar sincronizar novamente:", err);
-      }
-    }, 5000);
-
-    return () => clearTimeout(timer);
-  }, [erro, carregarDashboard]);
-
-  const pronto = !loading && !erro && data !== null && data.sincronizado;
-
-  const movimentacoes = pronto
-    ? data!.movimentacoes
-    : DIAS_PLACEHOLDER.map((dia) => ({ dia, valor: 1 }));
-
-  const maiorMovimentacao = pronto
-    ? Math.max(...data!.movimentacoes.map((m) => m.valor), 1)
-    : 1;
-
-  return (
-    <div className={styles.container}>
-      <div className={styles.header}>
-        <div>
-          <h1 className={styles.title}>Fluxo do estoque</h1>
-          <p className={styles.subtitle}>Atualizado do Nuvemshop</p>
-        </div>
-
-        {pronto ? (
-          <span className={styles.syncBadge}>
-            <span className={styles.syncDot} />
-            Sincronizado
-          </span>
-        ) : (
-          <span
-            className={`${styles.skeletonText} ${styles.skeletonBadge}`}
-            aria-hidden="true"
-          />
-        )}
-      </div>
-
-      <div className={styles.statsGrid}>
-        <div className={styles.statCard}>
-          <span className={styles.statLabel}>Vendas do mês</span>
-          <div className={styles.statValueRow}>
-            {pronto ? (
-              <>
-                <span className={styles.statValue}>
-                  {formatarMoeda(data!.vendasDoMes)}
-                </span>
-                <span
-                  className={styles.statChange}
-                  data-positive={data!.variacaoVendas >= 0}
-                >
-                  {data!.variacaoVendas >= 0 ? "+" : ""}
-                  {data!.variacaoVendas}%
-                </span>
-              </>
-            ) : (
-              <span
-                className={`${styles.statValue} ${styles.skeletonText}`}
-                style={{ width: "100px" }}
-                aria-hidden="true"
-              />
-            )}
-          </div>
-        </div>
-
-        <div className={styles.statCard}>
-          <span className={styles.statLabel}>Pedidos</span>
-          {pronto ? (
-            <span className={styles.statValue}>{data!.totalPedidos} Pedidos</span>
-          ) : (
-            <span
-              className={`${styles.statValue} ${styles.skeletonText}`}
-              style={{ width: "80px" }}
-              aria-hidden="true"
-            />
-          )}
-        </div>
-      </div>
-
-      <div className={styles.card}>
-        <span className={styles.cardLabel}>Alertas de ruptura</span>
-        <div className={styles.alertRow}>
-          {pronto ? (
-            <>
-              <span className={styles.alertValue}>
-                {data!.alertaRupturaPercentual}%
-              </span>
-              <span className={styles.alertBadge}>CRÍTICO</span>
-            </>
-          ) : (
-            <span
-              className={`${styles.alertValue} ${styles.skeletonText}`}
-              style={{ width: "60px" }}
-              aria-hidden="true"
-            />
-          )}
-        </div>
-      </div>
-
-      <div className={styles.card}>
-        <div className={styles.cardHeaderRow}>
-          <span className={styles.cardLabel}>Movimentações</span>
-          <span className={styles.cardHint}>Últimos 7 dias</span>
-        </div>
-        <div className={styles.chart}>
-          {movimentacoes.map((m, i) => (
-            <div key={i} className={styles.chartBarWrapper}>
-              <div
-                className={`${styles.chartBar} ${!pronto ? styles.chartBarSkeleton : ""}`}
-                style={{ height: pronto ? `${(m.valor / maiorMovimentacao) * 100}%` : "35%" }}
-                aria-hidden={!pronto}
-              />
-              <span className={styles.chartLabel}>{m.dia}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div className={styles.card}>
-        <span className={styles.cardLabel}>Pedidos recentes</span>
-        <div className={styles.orderList}>
-          {pronto
-            ? data!.pedidosRecentes.map((pedido) => (
-                <div key={pedido.id} className={styles.orderRow}>
-                  <div className={styles.orderInfo}>
-                    <span className={styles.orderNumber}>
-                      Pedido {pedido.numero}
-                    </span>
-                    <span className={styles.orderMeta}>
-                      {formatarMoeda(pedido.valor)} · {pedido.itens}{" "}
-                      {pedido.itens === 1 ? "item" : "itens"}
-                    </span>
-                  </div>
-                  <span className={styles.statusBadge} data-status={pedido.status}>
-                    {STATUS_LABEL[pedido.status]}
-                  </span>
-                </div>
-              ))
-            : [1, 2, 3].map((i) => (
-                <div key={i} className={styles.orderRow}>
-                  <div className={styles.orderInfo}>
-                    <span
-                      className={`${styles.orderNumber} ${styles.skeletonText}`}
-                      style={{ width: "110px" }}
-                      aria-hidden="true"
-                    />
-                    <span
-                      className={`${styles.orderMeta} ${styles.skeletonText}`}
-                      style={{ width: "150px" }}
-                      aria-hidden="true"
-                    />
-                  </div>
-                  <span
-                    className={`${styles.statusBadge} ${styles.skeletonText}`}
-                    style={{ width: "72px" }}
-                    aria-hidden="true"
-                  />
-                </div>
-              ))}
-        </div>
-      </div>
-
-      <TabBar />
+    if (!preferences?.atualizacaoAutomatica) return;
+    const timer = window.setInterval(() => { if (!loading && document.visibilityState === "visible") { setLoading(true); setRevision(current => current + 1); } }, preferences.intervaloSegundos * 1000);
+    return () => window.clearInterval(timer);
+  }, [preferences, loading]);
+  return <div className={styles.container} aria-busy={loading}>
+    {preferencesError && <p role="alert">{preferencesError}</p>}
+    {data && preferences && <p>Variantes em ruptura até {preferences.limiteRuptura}: {data.emRuptura}</p>}
+    <div className={styles.header}>
+      <div><h1 className={styles.title}>Fluxo do estoque</h1><p className={styles.subtitle}>Inventário e baixas da loja</p></div>
+      <button className={styles.refreshButton} type="button" disabled={loading} onClick={atualizar}>Atualizar</button>
     </div>
-  );
+    {loading && <p className={styles.notice} role="status">Carregando indicadores...</p>}
+    {error && <p className={styles.notice} role="alert">{error} <Link href="/login">Entrar novamente</Link></p>}
+    {data && <>
+      <p className={styles.notice}>Contagem de todas as páginas consultadas do catálogo. <Link href="/inventory">Ver inventário</Link></p>
+      <div className={styles.statsGrid}>
+        <div className={styles.statCard}><span className={styles.statLabel}>Produtos carregados</span><span className={styles.statValue}>{data.produtos}</span></div>
+        <div className={styles.statCard}><span className={styles.statLabel}>Variantes carregadas</span><span className={styles.statValue}>{data.variantes}</span></div>
+      </div>
+      <div className={styles.card}>
+        <span className={styles.cardLabel}>Situação das variantes carregadas</span>
+        <div className={styles.alertRow}><span className={styles.alertValue}>{data.semEstoque}</span><span>sem estoque disponível</span></div>
+        <p className={styles.cardHint}>{data.semControle} sem controle de estoque — contadas separadamente.</p>
+        {data.negativas > 0 && <p className={styles.notice} role="alert">{data.negativas} variante(s) com estoque negativo — solicitar conferência.</p>}
+      </div>
+      <div className={styles.card}>
+        <div className={styles.cardHeaderRow}><span className={styles.cardLabel}>Baixas recentes</span><Link href="/history">Ver histórico</Link></div>
+        <div className={styles.orderList}>
+          {!data.recentes.length && <p>Nenhuma baixa registrada.</p>}
+          {data.recentes.map(item => <div key={item.id} className={styles.orderRow}>
+            <div className={styles.orderInfo}>
+              <span className={styles.orderNumber}>Baixa #{item.id} · {item.quantidade} un.</span>
+              <span className={styles.orderMeta}>Variante {item.varianteId} · {item.sku || "Sem SKU"}</span>
+              <small className={styles.orderMeta}>{new Date(item.criadoEm).toLocaleString("pt-BR")}</small>
+            </div>
+            <span className={styles.statusBadge} data-status={item.status}>{statusLabel(item.status)}</span>
+          </div>)}
+        </div>
+      </div>
+    </>}
+    <CommercialDashboard revision={revision} />
+    <TabBar />
+  </div>;
 }

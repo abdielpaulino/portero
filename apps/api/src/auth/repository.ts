@@ -1,4 +1,4 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { lojas, usuariosApp } from "../db/schema.js";
 
@@ -32,7 +32,7 @@ export const authRepository: AuthRepository = {
     return db.select({ id: lojas.id, nomeLoja: lojas.nomeLoja })
       .from(usuariosApp)
       .innerJoin(lojas, eq(lojas.id, usuariosApp.lojaId))
-      .where(eq(usuariosApp.id, usuarioId))
+      .where(and(eq(usuariosApp.id, usuarioId), sql`length(btrim(${lojas.accessToken})) > 0`, sql`${lojas.status} IN ('pendente', 'ativa')`))
       .limit(1);
   },
 };

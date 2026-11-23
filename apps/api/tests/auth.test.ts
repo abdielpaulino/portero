@@ -181,7 +181,7 @@ describe("autenticação sem banco", { concurrency: false }, () => {
     assert.equal(payload.lojaId, lojaA.id);
     const result = await request(`/auth/session?lojaId=${lojaB.id}`, { cookie: session.cookie, base: secondBaseUrl });
     assert.equal(result.status, 200);
-    assert.deepEqual(result.body, { usuarioId: usuario.id, loja: lojaA });
+    assert.deepEqual(result.body, { usuarioId: usuario.id, loja: lojaA, baixasHabilitadas: false });
   });
 
   it("não autentica uma conta sem associação mesmo que o frontend informe uma loja", async () => {
@@ -200,7 +200,7 @@ describe("autenticação sem banco", { concurrency: false }, () => {
     });
     assert.equal(result.status, 404);
     const session = await request("/auth/session", { cookie: setCookie(authenticated.headers, SESSION_COOKIE).cookie });
-    assert.deepEqual(session.body, { usuarioId: usuario.id, loja: lojaA });
+    assert.deepEqual(session.body, { usuarioId: usuario.id, loja: lojaA, baixasHabilitadas: false });
   });
 
   it("protege a sessão contra token ausente, adulterado, expirado ou sem contexto válido", async () => {

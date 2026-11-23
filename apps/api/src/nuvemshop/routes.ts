@@ -1,111 +1,103 @@
-import { randomBytes, timingSafeEqual } from "node:crypto";
-import { Router, type CookieOptions, type RequestHandler } from "express";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import express, { Router, type CookieOptions, type RequestHandler } from "express";
 import { jwtVerify, SignJWT } from "jose";
 import { readCookie } from "../auth/session.js";
 import { NuvemshopError, type NuvemshopConfig, type createNuvemshopClient } from "./oauth.js";
-import type { NuvemshopRepository } from "./repository.js";
+import type { AuthorizationAttempt, NuvemshopRepository } from "./repository.js";
 
 export const OAUTH_COOKIE = "portero_nuvemshop_oauth";
 export const OAUTH_SECONDS = 5 * 60;
-
 export type NuvemshopOptions = {
   config: NuvemshopConfig;
   client: ReturnType<typeof createNuvemshopClient>;
   repository: NuvemshopRepository;
 };
-
-export function createNuvemshopRouter({ config, client, repository }: NuvemshopOptions, jwtSecret: string) {
+export function createNuvemshopRouter({ config, client, repository }: NuvemshopOptions,
+  jwtSecret: string, secureCookies = false) {
   const router = Router();
   const key = new TextEncoder().encode(jwtSecret);
-  const cookieOptions: CookieOptions = {
-    httpOnly: true, sameSite: "lax", secure: false, path: "/auth/nuvemshop",
-  };
-
+  const cookieOptions: CookieOptions = { httpOnly: true, sameSite: "lax", secure: secureCookies, path: "/auth/nuvemshop" };
   router.use((_req, res, next) => {
     res.setHeader("Cache-Control", "no-store");
     res.setHeader("Referrer-Policy", "no-referrer");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Content-Security-Policy", "default-src 'none'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'");
     next();
   });
-
-  function authorize(mode: "setup" | "connect"): RequestHandler {
-    return async (_req, res, next) => {
-      if (mode === "setup" && config.demoStoreId) {
-        res.status(409).json({ message: "A loja demo já está configurada. Use /auth/nuvemshop/authorize." });
-        return;
-      }
-      if (mode === "connect" && !config.demoStoreId) {
-        res.status(409).json({ message: "Identifique a loja demo em /auth/nuvemshop/setup e configure NUVEMSHOP_DEMO_STORE_ID antes de conectar." });
-        return;
-      }
-      try {
-        const state = randomBytes(32).toString("hex");
-        // A audience separada impede o uso dos JWTs do login interno neste fluxo.
-        const cookie = await new SignJWT({ clientId: config.clientId, demoStoreId: config.demoStoreId, mode })
-          .setProtectedHeader({ alg: "HS256", typ: "JWT" })
-          .setSubject(state).setIssuer("portero").setAudience("portero-nuvemshop-oauth")
-          .setIssuedAt().setExpirationTime(`${OAUTH_SECONDS}s`).sign(key);
-        res.cookie(OAUTH_COOKIE, cookie, { ...cookieOptions, maxAge: OAUTH_SECONDS * 1000 });
-        const url = new URL(`https://www.nuvemshop.com.br/apps/${config.clientId}/authorize`);
-        url.searchParams.set("state", state);
-        res.redirect(url.toString());
-      } catch {
-        next(new Error("Não foi possível iniciar a autorização da Nuvemshop."));
-      }
-    };
-  }
-
-  router.get("/setup", authorize("setup"));
-  router.get("/authorize", authorize("connect"));
-
-  router.get("/callback", async (req, res, next) => {
+  router.get("/install", async (_req, res) => {
+    try {
+      await repository.prepararAutorizacao(config.storeId);
+      res.type("html").send('<!doctype html><html lang="pt-BR"><meta charset="utf-8"><title>Instalação PORTERO</title><h1>Primeira instalação do PORTERO</h1><p>Use o segredo administrativo. Não informe sua senha da Nuvemshop.</p><form method="post" action="/auth/nuvemshop/authorize"><label>Segredo administrativo <input name="adminToken" type="password" required autocomplete="off"></label><button type="submit">Autorizar a primeira instalação</button></form></html>');
+    } catch (error) {
+      res.status(error instanceof NuvemshopError ? error.status : 503).type("html")
+        .send("<h1>Instalação indisponível</h1><p>Solicite conferência administrativa. Não há inicialização, recuperação ou reinstalação automática.</p>");
+    }
+  });
+  router.use(express.urlencoded({ extended: false, limit: "2kb" }));
+  const administrative: RequestHandler = (req, res, next) => {
+    const bearer = req.get("Authorization");
+    const isBearer = bearer?.startsWith("Bearer ") === true;
+    const supplied = isBearer ? bearer!.slice(7) : req.body?.adminToken;
+    if ((!isBearer && req.get("Origin") !== config.apiOrigin) || typeof supplied !== "string"
+      || !timingSafeEqual(createHash("sha256").update(supplied).digest(), createHash("sha256").update(config.adminToken).digest())) {
+      res.status(403).json({ message: "Autorização administrativa inválida." }); return;
+    }
+    next();
+  };
+  router.post("/setup", administrative, (_req, res) => {
+    res.status(409).json({ message: "Confirme o ID da loja e a preparação administrativa antes do primeiro OAuth." });
+  });
+  router.post("/authorize", administrative, async (req, res) => {
+    if (Object.keys(req.query).length) { res.status(409).json({ message: "Parâmetros não permitidos." }); return; }
+    try {
+      const state = randomBytes(32).toString("hex");
+      // Só uma transição inicial pode emitir um cookie. Falhas não reabrem o estado.
+      const preparation = await repository.iniciarAutorizacao(config.storeId);
+      const cookie = await new SignJWT({ clientId: config.clientId, storeId: config.storeId,
+        installationId: config.installationId, apiOrigin: config.apiOrigin,
+        lojaId: preparation.lojaId, lifecycleGeneration: preparation.generation })
+        .setProtectedHeader({ alg: "HS256", typ: "JWT" }).setSubject(state)
+        .setIssuer("portero").setAudience("portero-nuvemshop-oauth")
+        .setIssuedAt().setExpirationTime(`${OAUTH_SECONDS}s`).sign(key);
+      res.cookie(OAUTH_COOKIE, cookie, { ...cookieOptions, maxAge: OAUTH_SECONDS * 1000 });
+      const url = new URL(`https://www.nuvemshop.com.br/apps/${config.clientId}/authorize`);
+      url.searchParams.set("state", state);
+      res.redirect(303, url.toString());
+    } catch (error) {
+      res.status(error instanceof NuvemshopError ? error.status : 503)
+        .json({ message: error instanceof NuvemshopError ? error.message : "Não foi possível iniciar a autorização. Solicite conferência administrativa." });
+    }
+  });
+  router.get("/callback", async (req, res) => {
     res.clearCookie(OAUTH_COOKIE, cookieOptions);
     const { state, code, error } = req.query;
-    let mode: "setup" | "connect";
+    let attempt: AuthorizationAttempt;
     try {
       if (typeof state !== "string" || !/^[a-f0-9]{64}$/.test(state)) throw new Error();
       const { payload } = await jwtVerify(readCookie(req, OAUTH_COOKIE) ?? "", key, {
-        algorithms: ["HS256"], issuer: "portero", audience: "portero-nuvemshop-oauth",
-        maxTokenAge: `${OAUTH_SECONDS}s`, requiredClaims: ["sub", "iat", "exp", "clientId", "demoStoreId", "mode"],
+        algorithms: ["HS256"], issuer: "portero", audience: "portero-nuvemshop-oauth", maxTokenAge: `${OAUTH_SECONDS}s`,
+        requiredClaims: ["sub", "iat", "exp", "clientId", "storeId", "installationId", "apiOrigin", "lojaId", "lifecycleGeneration"],
       });
-      if (typeof payload.sub !== "string" || !/^[a-f0-9]{64}$/.test(payload.sub)
-        || !timingSafeEqual(Buffer.from(state), Buffer.from(payload.sub))
-        || payload.clientId !== config.clientId || payload.demoStoreId !== config.demoStoreId
-        || (payload.mode !== "setup" && payload.mode !== "connect")
-        || (payload.mode === "setup") !== !config.demoStoreId) throw new Error();
-      mode = payload.mode;
-    } catch {
-      res.status(400).json({ message: "Autorização inválida ou expirada. Inicie novamente neste navegador." });
-      return;
-    }
-
-    if (error !== undefined) {
-      res.status(400).json({ message: "A autorização não foi concluída na Nuvemshop. Inicie novamente." });
-      return;
-    }
-    if (typeof code !== "string" || !code.trim() || code.length > 2048) {
-      res.status(400).json({ message: "Código de autorização ausente ou inválido. Inicie novamente." });
-      return;
-    }
-
+      if (payload.sub !== state || payload.clientId !== config.clientId || payload.storeId !== config.storeId
+        || payload.installationId !== config.installationId || payload.apiOrigin !== config.apiOrigin
+        || typeof payload.lojaId !== "number" || !Number.isSafeInteger(payload.lojaId) || payload.lojaId <= 0
+        || typeof payload.lifecycleGeneration !== "string" || !payload.lifecycleGeneration) throw new Error();
+      attempt = { lojaId: payload.lojaId, generation: payload.lifecycleGeneration, nonce: state };
+    } catch { res.status(400).json({ message: "Autorização inválida ou expirada. Solicite conferência administrativa." }); return; }
     try {
-      if (mode === "setup") {
-        const id = await client.discoverStoreId(code);
-        res.json({ requiresConfiguration: true, nuvemshopStoreId: id,
-          message: "ID candidato obtido. Confirme que a loja autorizada é a demo, preencha NUVEMSHOP_DEMO_STORE_ID no .env e reinicie a API. Depois inicie /auth/nuvemshop/authorize. Nenhuma credencial foi salva." });
-        return;
+      // Consumo durável antes do código remoto: repetição e resultado incerto não abrem outro envio.
+      await repository.consumirAutorizacao(config.storeId, attempt);
+      if (error !== undefined || typeof code !== "string" || !code.trim() || code.length > 2048) {
+        throw new NuvemshopError(400, "A autorização não foi concluída. Solicite conferência administrativa.");
       }
       const loja = await client.connect(code);
-      await repository.salvarLoja(loja);
-      res.json({ message: "Loja demo conectada. Entre no PORTERO com seu login interno.",
+      await repository.salvarLoja(loja, attempt);
+      res.json({ message: "Loja conectada. Entre no PORTERO com a conta interna desta instalação.",
         loja: { nuvemshopStoreId: loja.nuvemshopStoreId, nomeLoja: loja.nomeLoja } });
-    } catch (error) {
-      if (error instanceof NuvemshopError) {
-        res.status(error.status).json({ message: error.message });
-      } else {
-        next(new Error("Não foi possível salvar a conexão da loja demo."));
-      }
+    } catch (failure) {
+      res.status(failure instanceof NuvemshopError ? failure.status : 503)
+        .json({ message: failure instanceof NuvemshopError ? failure.message : "Conexão não confirmada. Solicite conferência administrativa." });
     }
   });
-
   return router;
 }

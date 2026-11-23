@@ -5,28 +5,55 @@ import { useRouter } from "next/navigation";
 import TabBar from "../components/TabBar";
 import styles from "./settings.module.css";
 import { carregarSessao, encerrarSessao, type Session } from "../auth/session";
+import { loadPreferences, settingsRequest, type Preferences } from "./data";
 
 export default function SettingsPage() {
   const router = useRouter();
-  const [notifications, setNotifications] = useState(true);
+  const [notifications, setNotifications] = useState(false);
   const [autoSync, setAutoSync] = useState(true);
   const [rupturaQty, setRupturaQty] = useState("0");
   const [session, setSession] = useState<Session | null>(null);
   const [error, setError] = useState("");
   const [leaving, setLeaving] = useState(false);
   const submitting = useRef(false);
+  const [preferences, setPreferences] = useState<Preferences | null>(null), [recipient, setRecipient] = useState("");
+  const [interval, setInterval] = useState("60"), [saving, setSaving] = useState(false), [notice, setNotice] = useState("");
 
   useEffect(() => {
     const controller = new AbortController();
-    void carregarSessao(undefined, { signal: controller.signal }).then((value) => {
+    void carregarSessao(undefined, { signal: controller.signal }).then(async (value) => {
       if (controller.signal.aborted) return;
       if (!value) { router.replace("/login"); router.refresh(); return; }
       setSession(value);
+      if (value.configuracoesHabilitadas) {
+        const data = await loadPreferences(controller.signal);
+        if (!controller.signal.aborted) { setPreferences(data); setNotifications(data.notificacoesAtivas); setAutoSync(data.atualizacaoAutomatica);
+          setRupturaQty(String(data.limiteRuptura)); setRecipient(data.emailNotificacoes ?? ""); setInterval(String(data.intervaloSegundos)); }
+      }
     }).catch(() => {
       if (!controller.signal.aborted) setError("Não foi possível carregar a conta.");
     });
     return () => controller.abort();
   }, [router]);
+
+  async function save() {
+    if (!preferences || saving) return; setSaving(true); setError(""); setNotice("");
+    try {
+      const data = await settingsRequest("", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ limiteRuptura: Number(rupturaQty),
+        notificacoesAtivas: notifications, emailNotificacoes: recipient.trim() || null, atualizacaoAutomatica: autoSync, intervaloSegundos: Number(interval), versao: preferences.versao }) });
+      setPreferences(data); setNotice("Preferências salvas para esta loja.");
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Preferências não confirmadas."); }
+    finally { setSaving(false); }
+  }
+  async function monitor() {
+    if (saving) return; setSaving(true); setError(""); setNotice("");
+    try {
+      const result = await settingsRequest("/monitor", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      setNotice(`Monitoramento: ${result.abrangencia ?? "notificações desativadas"}. Envios confirmados pelo provedor: ${result.enviados}; incertos: ${result.incertos}.`);
+      setPreferences(await loadPreferences());
+    } catch (failure) { setError(failure instanceof Error ? failure.message : "Monitoramento não confirmado."); }
+    finally { setSaving(false); }
+  }
 
   async function handleLogout() {
     if (submitting.current) return;
@@ -61,7 +88,7 @@ export default function SettingsPage() {
       </div>
 
       <div className={`${styles.card} ${styles.list}`}>
-        <p className={styles.itemSubtitle}>Prévia: estas preferências ainda não são salvas.</p>
+        {!preferences && <p className={styles.itemSubtitle}>Preferências persistentes aguardam ativação e consulta administrativa.</p>}
         <div className={styles.item}>
           <span className={styles.itemIcon}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -80,6 +107,7 @@ export default function SettingsPage() {
             onClick={() => setNotifications((v) => !v)}
             aria-pressed={notifications}
             aria-label="Notificações"
+            disabled={!preferences || saving}
           >
             <span className={styles.switchThumb} />
           </button>
@@ -99,6 +127,9 @@ export default function SettingsPage() {
           </div>
           <input
             type="number"
+            aria-label="Limite de ruptura"
+            min={0}
+            disabled={!preferences || saving}
             className={styles.numberInput}
             value={rupturaQty}
             onChange={(e) => setRupturaQty(e.target.value)}
@@ -125,13 +156,25 @@ export default function SettingsPage() {
             onClick={() => setAutoSync((v) => !v)}
             aria-pressed={autoSync}
             aria-label="Sincronização automática"
+            disabled={!preferences || saving}
           >
             <span className={styles.switchThumb} />
           </button>
         </div>
+        <div className={styles.item}><label>Destinatário<input type="email" value={recipient} onChange={event => setRecipient(event.target.value)} disabled={!preferences || saving} /></label></div>
+        <div className={styles.item}><label>Intervalo da tela, em segundos<input type="number" min={60} max={3600} value={interval} onChange={event => setInterval(event.target.value)} disabled={!preferences || saving} /></label></div>
+        <p className={styles.itemSubtitle}>A atualização automática consulta o estoque enquanto a tela estiver visível. Não cria vendas nem altera o saldo.</p>
+        <p className={styles.itemSubtitle}>Com a tela fechada, o monitoramento usa o agendamento diário da Vercel, sujeito ao plano e à validação do envio.</p>
+        {preferences && <><button type="button" disabled={saving} onClick={() => void save()}>Salvar preferências</button>
+          <p>{preferences.envioConfigurado ? "Adaptador de envio configurado; validar a entrega ao destinatário." : "Envio de notificações ainda não configurado ou habilitado."}</p>
+          <button type="button" disabled={saving || !preferences.envioConfigurado || !preferences.notificacoesAtivas} onClick={() => void monitor()}>Executar monitoramento</button>
+          <p>Último lote: {preferences.monitorEm ? new Date(preferences.monitorEm).toLocaleString("pt-BR") : "não executado"} · {preferences.monitorResultado ?? "sem resultado"}</p>
+          {preferences.alertas?.map(alert => <p key={alert.eventoId}>{alert.nome} · variante {alert.varianteId}: {alert.estado}. Evento {alert.eventoId}</p>)}
+          <p>Envios em processamento ou incertos exigem conferência no provedor; não são repetidos automaticamente.</p></>}
       </div>
 
       {error && <p role="alert">{error}</p>}
+      {notice && <p role="status">{notice}</p>}
       <button type="button" className={styles.logout} onClick={handleLogout} disabled={leaving}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />

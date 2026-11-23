@@ -129,9 +129,10 @@
 }
 
 .variationPill {
-  width: 2.4rem;
-  height: 2.4rem;
-  border-radius: 50%;
+  min-width: 2.4rem;
+  min-height: 2.4rem;
+  padding: 0.45rem 0.7rem;
+  border-radius: 1.2rem;
   border: 1.5px solid var(--border-color);
   background: var(--conteiner-bg);
   color: var(--dark-font);

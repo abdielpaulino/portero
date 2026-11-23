@@ -22,5 +22,5 @@ export async function carregarHistorico(page: number, signal?: AbortSignal, fetc
 }
 export function statusLabel(status: string) {
   return ({ registrada: "Registrada — ainda não enviada", pendente: "Pendente do fluxo anterior — conferir", em_processamento: "Em processamento — conferir", incerta: "Sem confirmação — conferir",
-    sincronizada: "Confirmada", rejeitada: "Recusada ou cancelada" } as Record<string, string>)[status] ?? `${status} — conferir`;
+    sincronizada: "Confirmada", rejeitada: "Recusada ou cancelada", conferida_parcial: "Conferida — aplicação parcial" } as Record<string, string>)[status] ?? `${status} — conferir`;
 }

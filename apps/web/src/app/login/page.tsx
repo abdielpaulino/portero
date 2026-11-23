@@ -1,8 +1,10 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./login.module.css";
+
+const subscribeHydration = () => () => {};
 
 function isAuthenticated(value: unknown): boolean {
   if (typeof value !== "object" || value === null) return false;
@@ -21,6 +23,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const submitting = useRef(false);
+  const hydrated = useSyncExternalStore(subscribeHydration, () => true, () => false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -61,7 +64,8 @@ export default function LoginPage() {
         <p className={styles.subtitle}>Acesse sua conta</p>
       </div>
       <div className={styles.card}>
-        <form onSubmit={handleSubmit} className={styles.form} aria-busy={loading}>
+        <form method="post" action="/api/auth/login" onSubmit={handleSubmit} className={styles.form} aria-busy={loading}>
+          <noscript><p>Ative o JavaScript para entrar.</p></noscript>
           <div className={styles.field}>
             <label htmlFor="email">E-mail</label>
             <input id="email" name="email" type="email" autoComplete="username" placeholder="E-mail"
@@ -73,7 +77,7 @@ export default function LoginPage() {
               value={password} onChange={(event) => setPassword(event.target.value)} disabled={loading} required />
           </div>
           {error && <p className={styles.error} role="alert">{error}</p>}
-          <button type="submit" className={styles.button} disabled={loading}>{loading ? "Aguarde..." : "Entrar"}</button>
+          <button type="submit" className={styles.button} disabled={!hydrated || loading}>{loading ? "Aguarde..." : "Entrar"}</button>
         </form>
       </div>
     </div>

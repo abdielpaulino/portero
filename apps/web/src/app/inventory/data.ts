@@ -14,7 +14,7 @@ export type Item = {
 export type Filtro = "todos" | "ruptura" | "estoque";
 export type InventoryPage = { items: Item[]; page: number; nextPage: number | null };
 
-function isItem(value: unknown): value is Item {
+export function isItem(value: unknown): value is Item {
   if (typeof value !== "object" || value === null) return false;
   const item = value as Record<string, unknown>;
   return [item.id, item.produtoId, item.varianteId, item.nome, item.variante].every((field) => typeof field === "string")
@@ -38,6 +38,18 @@ export async function carregarInventario(page: number, signal?: AbortSignal, fet
   if (!Array.isArray(result.items) || !result.items.every(isItem) || result.page !== page
     || (result.nextPage !== null && result.nextPage !== page + 1)) throw new Error("Resposta inválida do inventário.");
   return result as InventoryPage;
+}
+
+export async function carregarCatalogo(signal?: AbortSignal, fetcher: typeof fetch = fetch): Promise<Item[]> {
+  const items = new Map<string, Item>();
+  let page: number | null = 1;
+  while (page !== null) {
+    signal?.throwIfAborted();
+    const result = await carregarInventario(page, signal, fetcher);
+    for (const item of result.items) items.set(item.id, item);
+    page = result.nextPage;
+  }
+  return [...items.values()];
 }
 
 export function filtrarItens(items: Item[], busca: string, filtro: Filtro): Item[] {

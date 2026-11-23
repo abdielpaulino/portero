@@ -5,20 +5,24 @@ import Image from "next/image";
 import Link from "next/link";
 import TabBar from "../components/TabBar";
 import styles from "./inventory.module.css";
-import { carregarInventario, filtrarItens, quantidadeLabel, precoLabel, type Item, type Filtro } from "./data";
+import { carregarCatalogo, filtrarItens, quantidadeLabel, precoLabel, type Item, type Filtro } from "./data";
 import StockDecrease from "./StockDecrease";
+import { carregarSessao } from "../auth/session";
+import { usePreferences } from "../settings/usePreferences";
 
 export default function InventoryPage() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState<Filtro>("todos");
+  const [page, setPage] = useState(1);
   const [erro, setErro] = useState("");
-  const [nextPage, setNextPage] = useState<number | null>(null);
-  const [failedPage, setFailedPage] = useState(1);
   const [baixasEmAndamento, setBaixasEmAndamento] = useState(0);
   const [aviso, setAviso] = useState("");
-  const loadedPages = useRef(1);
+  const [baixasHabilitadas, setBaixasHabilitadas] = useState(false);
+  const [vendasHabilitadas, setVendasHabilitadas] = useState(false);
+  const [settingsEnabled, setSettingsEnabled] = useState(false);
+  const { preferences, error: preferencesError } = usePreferences(settingsEnabled);
   const refreshGeneration = useRef(0);
 
   const acompanharBaixa = useCallback((busy: boolean) => {
@@ -30,59 +34,73 @@ export default function InventoryPage() {
     const generation = ++refreshGeneration.current;
     setAviso(`Baixa confirmada para ${selected.nome}, variante ${selected.variante}. Atualizando estoque...`);
     setLoading(true);
-    void Promise.all(Array.from({ length: loadedPages.current }, (_, page) => carregarInventario(page + 1))).then((pages) => {
+    void carregarCatalogo().then((catalogo) => {
       if (generation !== refreshGeneration.current) return;
-      setItems(pages.flatMap((page) => page.items));
-      setNextPage(pages.at(-1)?.nextPage ?? null);
+      setItems(catalogo);
       setErro("");
       setAviso(`Baixa confirmada para ${selected.nome}, variante ${selected.variante}. Estoque atualizado.`);
     }).catch((error: unknown) => {
       if (generation !== refreshGeneration.current) return;
       setErro(error instanceof Error ? error.message : "A baixa foi confirmada, mas não foi possível atualizar o inventário.");
       setAviso("Baixa confirmada. O estoque exibido precisa ser atualizado.");
-      setFailedPage(1);
     }).finally(() => { if (generation === refreshGeneration.current) setLoading(false); });
   }, []);
 
-  const carregarItens = useCallback(async (page: number) => {
-    setLoading(true);
-    setErro("");
-    try {
-      const data = await carregarInventario(page);
-      setItems((current) => page === 1 ? data.items
-        : [...new Map([...current, ...data.items].map((item) => [item.id, item])).values()]);
-      setNextPage(data.nextPage);
-      loadedPages.current = page === 1 ? 1 : Math.max(loadedPages.current, page);
-    } catch (error) {
+  const carregarItens = useCallback((signal?: AbortSignal) => {
+    const generation = ++refreshGeneration.current;
+    return Promise.all([carregarCatalogo(signal), carregarSessao(undefined, { signal })]).then(([catalogo, session]) => {
+      if (signal?.aborted || generation !== refreshGeneration.current) return;
+      setBaixasHabilitadas(session?.baixasHabilitadas === true);
+      setVendasHabilitadas(session?.vendasExternasHabilitadas === true);
+      setSettingsEnabled(session?.configuracoesHabilitadas === true);
+      setItems(catalogo);
+    }).catch((error: unknown) => {
+      if (signal?.aborted || generation !== refreshGeneration.current) return;
       setErro(error instanceof Error ? error.message : "Não foi possível carregar o inventário. Tente novamente.");
-      setFailedPage(page);
-    } finally {
-      setLoading(false);
-    }
+    }).finally(() => {
+      if (!signal?.aborted && generation === refreshGeneration.current) setLoading(false);
+    });
   }, []);
+
+  const atualizarConsulta = useCallback(() => {
+    setLoading(true); setErro(""); void carregarItens();
+  }, [carregarItens]);
 
   useEffect(() => {
     const controller = new AbortController();
-    void carregarInventario(1, controller.signal).then((data) => {
-      if (controller.signal.aborted) return;
-      setItems(data.items);
-      setNextPage(data.nextPage);
-    }).catch((error: unknown) => {
-      if (!controller.signal.aborted) setErro(error instanceof Error ? error.message : "Não foi possível carregar o inventário. Tente novamente.");
-    }).finally(() => {
-      if (!controller.signal.aborted) setLoading(false);
-    });
+    void carregarItens(controller.signal);
     return () => controller.abort();
-  }, []);
+  }, [carregarItens]);
 
-  const itensFiltrados = filtrarItens(items, busca, filtro);
+  useEffect(() => {
+    function atualizarAoRetornar() {
+      if (!loading && baixasEmAndamento === 0 && document.visibilityState === "visible") atualizarConsulta();
+    }
+    window.addEventListener("focus", atualizarAoRetornar);
+    document.addEventListener("visibilitychange", atualizarAoRetornar);
+    return () => { window.removeEventListener("focus", atualizarAoRetornar); document.removeEventListener("visibilitychange", atualizarAoRetornar); };
+  }, [loading, baixasEmAndamento, atualizarConsulta]);
+
+  useEffect(() => {
+    if (!preferences?.atualizacaoAutomatica) return;
+    const timer = window.setInterval(() => { if (!loading && baixasEmAndamento === 0 && document.visibilityState === "visible") atualizarConsulta(); }, preferences.intervaloSegundos * 1000);
+    return () => window.clearInterval(timer);
+  }, [preferences, loading, baixasEmAndamento, atualizarConsulta]);
+  const itensFiltrados = filtrarItens(items.map(item => ({ ...item, ruptura: item.quantidade !== null && item.quantidade <= (preferences?.limiteRuptura ?? 0) })), busca, filtro);
+  const pageCount = Math.max(1, Math.ceil(itensFiltrados.length / 30)), currentPage = Math.min(page, pageCount);
+  const visibleItems = itensFiltrados.slice((currentPage - 1) * 30, currentPage * 30);
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <h1 className={styles.title}>Inventário</h1>
         <p className={styles.subtitle}>Produtos e variantes da loja</p>
+        {preferences && <p>Limite de ruptura: {preferences.limiteRuptura}. Atualização da tela: {preferences.atualizacaoAutomatica ? `${preferences.intervaloSegundos}s` : "manual"}.</p>}
+        {preferencesError && <p role="alert">{preferencesError}</p>}
         <Link href="/history">Histórico de baixas</Link>
+        {vendasHabilitadas && <><Link href="/sales">Registrar venda externa</Link><p>Dar baixa registra somente estoque. Use a venda externa para registrar canal, valores e pagamento.</p></>}
+        <button type="button" className={styles.filterPill} disabled={loading || baixasEmAndamento > 0}
+          onClick={atualizarConsulta}>Atualizar estoque</button>
       </div>
 
       <div className={styles.searchWrapper}>
@@ -105,7 +123,8 @@ export default function InventoryPage() {
           className={styles.searchInput}
           placeholder="Itens, variantes, SKUs..."
           value={busca}
-          onChange={(e) => setBusca(e.target.value)}
+          disabled={loading}
+          onChange={(e) => { setBusca(e.target.value); setPage(1); }}
         />
       </div>
 
@@ -114,7 +133,8 @@ export default function InventoryPage() {
           type="button"
           className={styles.filterPill}
           data-active={filtro === "todos"}
-          onClick={() => setFiltro("todos")}
+          disabled={loading}
+          onClick={() => { setFiltro("todos"); setPage(1); }}
         >
           Todos
         </button>
@@ -122,7 +142,8 @@ export default function InventoryPage() {
           type="button"
           className={styles.filterPill}
           data-active={filtro === "ruptura"}
-          onClick={() => setFiltro("ruptura")}
+          disabled={loading}
+          onClick={() => { setFiltro("ruptura"); setPage(1); }}
         >
           Ruptura
         </button>
@@ -130,21 +151,23 @@ export default function InventoryPage() {
           type="button"
           className={styles.filterPill}
           data-active={filtro === "estoque"}
-          onClick={() => setFiltro("estoque")}
+          disabled={loading}
+          onClick={() => { setFiltro("estoque"); setPage(1); }}
         >
           Com estoque
         </button>
       </div>
 
       <div className={styles.list} aria-busy={loading}>
+        {!loading && !baixasHabilitadas && <p className={styles.hint}>Baixas desabilitadas. Consulta e histórico disponíveis.</p>}
         {aviso && <p className={styles.hint} role="status">{aviso}</p>}
-        {nextPage !== null && <p className={styles.hint}>Busca e filtros nos itens carregados.</p>}
+        {loading && <p className={styles.hint} role="status">Consultando todas as páginas do catálogo...</p>}
         {erro && (
           <div className={styles.empty} role="alert">
             <p>{erro}</p>
             <Link href="/login">Entrar novamente</Link>{" "}
             <button type="button" className={styles.filterPill} disabled={loading || baixasEmAndamento > 0}
-              onClick={() => void carregarItens(failedPage)}>Tentar novamente</button>
+              onClick={atualizarConsulta}>Tentar novamente</button>
           </div>
         )}
         {loading &&
@@ -156,21 +179,21 @@ export default function InventoryPage() {
           <p className={styles.empty}>Nenhum item encontrado.</p>
         )}
 
-        {itensFiltrados.map((item) => (
+        {visibleItems.map((item) => (
             <div
               key={item.id}
               className={styles.card}
             >
               <div className={styles.thumb}>
                 {item.imagemUrl ? (
-                  <Image
+                  <Link href={`/productDetails/${item.produtoId}?varianteId=${item.varianteId}`} aria-label={`Ver detalhes de ${item.nome}, variante ${item.variante}`}><Image
                     src={item.imagemUrl}
                     alt={item.nome}
                     className={styles.thumbImg}
                     width={48}
                     height={48}
                     unoptimized
-                  />
+                  /></Link>
                 ) : (
                   <svg
                     width="20"
@@ -190,7 +213,7 @@ export default function InventoryPage() {
               </div>
 
               <div className={styles.info}>
-                <span className={styles.itemName}>{item.nome}</span>
+                <Link className={styles.itemName} href={`/productDetails/${item.produtoId}?varianteId=${item.varianteId}`}>{item.nome}</Link>
                 <span className={styles.sku}>Variante: {item.variante}</span>
                 <div className={styles.itemMeta}>
                   <span className={styles.sku}>SKU: {item.sku || "—"}</span>
@@ -203,8 +226,9 @@ export default function InventoryPage() {
                   <span className={styles.status} data-ruptura={item.ruptura}>
                     {item.ruptura ? "Alerta Ruptura" : "Normal"}
                   </span>
+                  {item.quantidade !== null && item.quantidade < 0 && <span role="alert">Estoque negativo — conferir.</span>}
                 </div>
-                <StockDecrease item={item} className={styles.stockAction} disabled={loading}
+                <StockDecrease item={item} className={styles.stockAction} disabled={loading || !!erro || !baixasHabilitadas}
                   onSuccess={() => atualizarSaldo(item)} onBusyChange={acompanharBaixa} />
               </div>
 
@@ -213,13 +237,13 @@ export default function InventoryPage() {
               </span>
             </div>
           ))}
-        {!loading && !erro && nextPage !== null && (
-          <button type="button" className={styles.filterPill} disabled={baixasEmAndamento > 0} onClick={() => void carregarItens(nextPage)}>
-            Carregar mais
-          </button>
-        )}
       </div>
 
+      {!loading && !erro && itensFiltrados.length > 0 && <nav aria-label="Páginas do catálogo">
+        <p>Página {currentPage} de {pageCount} · {itensFiltrados.length} variantes encontradas no catálogo consultado</p>
+        <button type="button" className={styles.filterPill} disabled={currentPage <= 1 || baixasEmAndamento > 0} onClick={() => setPage(currentPage - 1)}>Anterior</button>
+        <button type="button" className={styles.filterPill} disabled={currentPage >= pageCount || baixasEmAndamento > 0} onClick={() => setPage(currentPage + 1)}>Próxima</button>
+      </nav>}
       <TabBar />
     </div>
   );

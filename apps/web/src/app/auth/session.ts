@@ -1,4 +1,4 @@
-export type Session = { usuarioId: number; loja: { id: number; nomeLoja: string } };
+export type Session = { usuarioId: number; loja: { id: number; nomeLoja: string }; baixasHabilitadas?: boolean; vendasExternasHabilitadas?: boolean; pedidosOnlineHabilitados?: boolean; configuracoesHabilitadas?: boolean; conferenciasHabilitadas?: boolean };
 
 export async function carregarSessao(url = "/api/auth/session", init: RequestInit = {}, fetcher: typeof fetch = fetch): Promise<Session | null> {
   const response = await fetcher(url, { ...init, credentials: "same-origin", cache: "no-store" });
@@ -10,7 +10,8 @@ export async function carregarSessao(url = "/api/auth/session", init: RequestIni
   const loja = value.loja as Record<string, unknown> | null;
   if (typeof value.usuarioId !== "number" || !Number.isSafeInteger(value.usuarioId) || value.usuarioId <= 0
     || typeof loja !== "object" || loja === null || typeof loja.id !== "number" || !Number.isSafeInteger(loja.id)
-    || loja.id <= 0 || typeof loja.nomeLoja !== "string") throw new Error("Resposta inválida da sessão.");
+    || loja.id <= 0 || typeof loja.nomeLoja !== "string"
+    || ["baixasHabilitadas", "vendasExternasHabilitadas", "pedidosOnlineHabilitados", "configuracoesHabilitadas", "conferenciasHabilitadas"].some(key => value[key] !== undefined && typeof value[key] !== "boolean")) throw new Error("Resposta inválida da sessão.");
   return data as Session;
 }
 
