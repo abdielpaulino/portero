@@ -10,14 +10,17 @@ import { stockHistoryRepository } from "./inventory/history-repository.js";
 import { readRuntime } from "./runtime.js";
 import { createWebhookRepository } from "./nuvemshop/webhook-repository.js";
 import { createPrivacyReporter } from "./nuvemshop/privacy-report.js";
-import { pool, webhookPool } from "./db/client.js";
+import { pool, salesControlPool, webhookPool } from "./db/client.js";
+import { createSalesRepository } from "./sales/repository.js";
+import { createOrdersClient } from "./nuvemshop/orders.js";
 
 const runtime = readRuntime(process.env);
 const config = runtime.nuvemshop;
 const integration = runtime.integration;
 const nuvemshopRepository = createNuvemshopRepository(pool);
 const stock = { storeId: integration.storeId, enabled: runtime.stockEnabled,
-  client: createStockClient(integration.userAgent), repository: createStockRepository(pool) };
+  client: createStockClient(integration.userAgent), repository: createStockRepository(pool, runtime.externalSalesEnabled) };
+const salesRepository = createSalesRepository(pool, salesControlPool, integration.storeId);
 const app = createApp({
   repository: authRepository, jwtSecret: process.env.JWT_SECRET ?? "",
   secureCookies: runtime.production, requireOrigin: runtime.production,
@@ -27,6 +30,8 @@ const app = createApp({
   verifyInstallation: () => nuvemshopRepository.verificarInstalacao(integration.storeId),
   history: stockHistoryRepository,
   stock,
+  sales: runtime.externalSalesEnabled ? { repository: salesRepository, products: createProductsClient(integration.userAgent), stock } : undefined,
+  orders: runtime.onlineOrdersEnabled ? { repository: salesRepository, client: createOrdersClient(integration.userAgent) } : undefined,
   inventory: { repository: inventoryRepository, client: createProductsClient(integration.userAgent) },
   nuvemshop: config ? { config, client: createNuvemshopClient(config), repository: nuvemshopRepository } : undefined,
 });

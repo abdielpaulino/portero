@@ -8,6 +8,8 @@ import { createStockRouter, type StockOptions } from "./stock/routes.js";
 import { createStockHistoryRouter, type StockHistoryRepository } from "./inventory/history.js";
 import { NuvemshopError } from "./nuvemshop/oauth.js";
 import { createNuvemshopWebhookRouter, type WebhookOptions } from "./nuvemshop/webhooks.js";
+import { createSalesRouter, type SalesOptions } from "./sales/routes.js";
+import { createOrdersRouter, type OrdersOptions } from "./sales/orders-routes.js";
 
 type AppOptions = {
   repository: AuthRepository;
@@ -23,10 +25,12 @@ type AppOptions = {
   requireOrigin?: boolean;
   verifyInstallation?: () => Promise<void>;
   webhooks?: WebhookOptions;
+  sales?: SalesOptions;
+  orders?: OrdersOptions;
 };
 
 export function createApp({ repository, jwtSecret, secureCookies = false, webOrigin = "http://localhost:3000", nuvemshop, inventory, stock, history,
-  apiOrigin = "http://localhost:3001", requireOrigin = false, verifyInstallation, webhooks }: AppOptions) {
+  apiOrigin = "http://localhost:3001", requireOrigin = false, verifyInstallation, webhooks, sales, orders }: AppOptions) {
   const app = express();
   if (webhooks) app.use("/webhooks/nuvemshop", createNuvemshopWebhookRouter(webhooks));
   app.use(cors({ origin: webOrigin, credentials: true }));
@@ -56,7 +60,9 @@ export function createApp({ repository, jwtSecret, secureCookies = false, webOri
     }
   });
 
-  app.use("/auth", createAuthRouter(repository, jwtSecret, secureCookies, stock?.enabled));
+  app.use("/auth", createAuthRouter(repository, jwtSecret, secureCookies, stock?.enabled, sales || orders ? { externas: !!sales, online: !!orders } : undefined));
+  app.use("/sales/external", createSalesRouter(jwtSecret, sales));
+  app.use("/sales/online-orders", createOrdersRouter(jwtSecret, orders));
   app.use("/inventory", createInventoryRouter(jwtSecret, inventory));
   app.use("/inventory/stock-decreases", createStockHistoryRouter(repository, jwtSecret, history));
   app.use("/inventory/stock-decreases", createStockRouter(jwtSecret, stock));

@@ -28,3 +28,8 @@ webhookPool.on("error", () => {
 });
 
 export const db = drizzle(pool, { schema });
+
+// Separa o lock de venda da conexão usada pela baixa; evita espera circular em pool de tamanho um.
+export const salesControlPool = new Pool({ connectionString: databaseUrl, max: 1, connectionTimeoutMillis: 5_000,
+  idleTimeoutMillis: 5_000, statement_timeout: 5_000, query_timeout: 6_000, allowExitOnIdle: true });
+salesControlPool.on("error", () => console.error("A conexão de controle comercial foi encerrada."));

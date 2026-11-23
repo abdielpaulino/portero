@@ -11,13 +11,14 @@ export type StockRecord = {
 export interface StockContext {
   store: StoreCredentials;
   operation?: StockRecord;
+  externalSale?: { id: number; situacao: string };
   hasUnresolved(exceptId?: number): Promise<boolean>;
   create(command: StockCommand): Promise<StockRecord>;
   prepare(id: number, sku: string | null): Promise<void>;
   status(id: number, status: "sincronizada" | "rejeitada" | "incerta"): Promise<void>;
 }
 export interface StockRepository {
-  withLock<T>(auth: AuthContext, target: StockCommand | number, work: (context: StockContext) => Promise<T>): Promise<T>;
+  withLock<T>(auth: AuthContext, target: StockCommand | number, work: (context: StockContext) => Promise<T>, saleId?: number): Promise<T>;
 }
 function result(record: StockRecord, httpStatus: number, message: string, repetida = false) {
   return { httpStatus, body: { baixaId: record.id, produtoId: record.produtoId, varianteId: record.variantId,
@@ -60,11 +61,12 @@ export async function cancelStockDecrease(repository: StockRepository, storeId: 
   });
 }
 export async function decreaseStock(repository: StockRepository, client: ReturnType<typeof createStockClient>,
-  storeId: string, auth: AuthContext, id: number) {
+  storeId: string, auth: AuthContext, id: number, saleId?: number) {
   return repository.withLock(auth, id, async (context) => {
     checkStore(context, storeId);
     let record = getOperation(context, auth, id);
     if (record.statusSincronizacao === "sincronizada") return result(record, 200, "Baixa já confirmada.", true);
+    if (context.externalSale?.situacao === "cancelada") throw new NuvemshopError(409, "Venda cancelada. Nenhuma nova baixa será enviada.");
     if (record.statusSincronizacao !== "registrada") return result(record, 409,
       "Esta operação não será reenviada. Confira o histórico antes de continuar.", true);
     if (await context.hasUnresolved(id)) throw new NuvemshopError(409, "A variante possui outra operação sem conclusão. Solicite conferência.");
@@ -94,5 +96,5 @@ export async function decreaseStock(repository: StockRepository, client: ReturnT
     try { await context.status(id, "sincronizada"); }
     catch { return result(record, 503, "A atualização remota foi confirmada, mas o registro local não foi finalizado. Solicite conferência."); }
     return result({ ...record, statusSincronizacao: "sincronizada" }, 200, "Baixa confirmada.");
-  });
+  }, saleId);
 }

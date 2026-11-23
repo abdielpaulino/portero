@@ -83,6 +83,14 @@ it("loja inexistente aceita reentrega sem gravar registros para qualquer evento"
   for (const event of ["app/uninstalled", "app/suspended", "app/store_redact"] as const) await db.repository.handle("123", event);
   assert.ok(db.queries.every(query => !/^(INSERT|UPDATE|DELETE)/.test(query.text)));
 });
+it("exclusão remove a extensão comercial antes das baixas, mesmo sem depender das flags de ativação", async () => {
+  const db = database([store], { commercial: true });
+  await db.repository.handle("123", "app/store_redact");
+  const deletions = db.queries.filter(query => query.text.startsWith("DELETE"));
+  assert.equal(deletions[0].text, "DELETE FROM vendas_externas WHERE loja_id = $1");
+  assert.equal(deletions[1].text, "DELETE FROM baixas_estoque WHERE loja_id = $1");
+  assert.equal(db.queries.at(-1)!.text, "COMMIT");
+});
 it("recusa banco de outra loja, múltiplas lojas e lock ocupado sem alterar registros", async () => {
   for (const rows of [[{ ...store, nuvemshop_store_id: "999" }], [store, { ...store, id: 9, nuvemshop_store_id: "999" }]]) {
     const db = database(rows);

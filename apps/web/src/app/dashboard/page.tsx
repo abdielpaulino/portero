@@ -6,6 +6,7 @@ import TabBar from "../components/TabBar";
 import styles from "./dashboard.module.css";
 import { carregarDashboard, type DashboardData } from "./data";
 import { statusLabel } from "../history/data";
+import CommercialDashboard from "./CommercialDashboard";
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -67,6 +68,7 @@ export default function DashboardPage() {
         </div>
       </div>
     </>}
+    <CommercialDashboard revision={revision} />
     <TabBar />
   </div>;
 }

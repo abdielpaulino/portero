@@ -18,6 +18,7 @@ export default function InventoryPage() {
   const [baixasEmAndamento, setBaixasEmAndamento] = useState(0);
   const [aviso, setAviso] = useState("");
   const [baixasHabilitadas, setBaixasHabilitadas] = useState(false);
+  const [vendasHabilitadas, setVendasHabilitadas] = useState(false);
   const refreshGeneration = useRef(0);
 
   const acompanharBaixa = useCallback((busy: boolean) => {
@@ -46,6 +47,7 @@ export default function InventoryPage() {
     return Promise.all([carregarCatalogo(signal), carregarSessao(undefined, { signal })]).then(([catalogo, session]) => {
       if (signal?.aborted || generation !== refreshGeneration.current) return;
       setBaixasHabilitadas(session?.baixasHabilitadas === true);
+      setVendasHabilitadas(session?.vendasExternasHabilitadas === true);
       setItems(catalogo);
     }).catch((error: unknown) => {
       if (signal?.aborted || generation !== refreshGeneration.current) return;
@@ -82,6 +84,7 @@ export default function InventoryPage() {
         <h1 className={styles.title}>Inventário</h1>
         <p className={styles.subtitle}>Produtos e variantes da loja</p>
         <Link href="/history">Histórico de baixas</Link>
+        {vendasHabilitadas && <><Link href="/sales">Registrar venda externa</Link><p>Dar baixa registra somente estoque. Use a venda externa para registrar canal, valores e pagamento.</p></>}
         <button type="button" className={styles.filterPill} disabled={loading || baixasEmAndamento > 0}
           onClick={atualizarConsulta}>Atualizar estoque</button>
       </div>

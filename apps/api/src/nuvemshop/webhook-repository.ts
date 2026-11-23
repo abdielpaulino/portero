@@ -6,7 +6,6 @@ export type StoreLifecycleEvent = "app/uninstalled" | "app/suspended" | "app/sto
 export interface WebhookRepository {
   handle(storeId: string, event: StoreLifecycleEvent): Promise<void>;
 }
-
 export function createWebhookRepository(database: Pool, timeoutMs = 1_500): WebhookRepository {
   return {
     async handle(storeId, event) {
@@ -37,6 +36,8 @@ export function createWebhookRepository(database: Pool, timeoutMs = 1_500): Webh
           checkInstallation(current.rows, storeId);
           const lojaId = current.rows[0].id;
           if (event === "app/store_redact") {
+            const extension = await query("SELECT to_regclass('public.vendas_externas')::text AS tabela");
+            if (extension.rows[0]?.tabela) await query("DELETE FROM vendas_externas WHERE loja_id = $1", [lojaId]);
             await query("DELETE FROM baixas_estoque WHERE loja_id = $1", [lojaId]);
             await query("DELETE FROM usuarios_app WHERE loja_id = $1", [lojaId]);
             await query("DELETE FROM acessos_permitidos WHERE loja_id = $1", [lojaId]);

@@ -3,10 +3,12 @@ import { EventEmitter } from "node:events";
 import { after, before, beforeEach, it, mock } from "node:test";
 import { Pool } from "pg";
 import type { StockRepository, StockRecord } from "../src/stock/service.js";
+import { decreaseStock } from "../src/stock/service.js";
 const auth={usuarioId:1,lojaId:10}, command={produtoId:"100",varianteId:"101",quantidade:2};
 const row: StockRecord={id:7,usuarioId:1,produtoId:"100",variantId:"101",quantidadeBaixada:2,statusSincronizacao:"registrada"};
 let repository:StockRepository, queries:{text:string;values:unknown[]}[], released:boolean|undefined;
 let access:boolean, lock:boolean, installationLock:boolean, found:boolean, unresolved:boolean, rowCount:number, fail:string|undefined;
+let saleStatus: string | undefined, saleValid: boolean;
 const events=new EventEmitter(); const previous=process.env.DATABASE_URL;
 before(async()=>{
  process.env.DATABASE_URL="postgresql://offline:offline@127.0.0.1:1/offline";
@@ -15,6 +17,9 @@ before(async()=>{
   async query(text:string,values:unknown[]){
    queries.push({text,values}); if(fail&&text.startsWith(fail))throw new Error("erro-sensivel");
    if(text.includes("pg_try_advisory_lock_shared"))return{rows:[{locked:installationLock}]};
+   if(text.includes("to_regclass"))return{rows:[{tabela:saleStatus?"itens_venda_externa":null}]};
+   if(text.includes("FROM itens_venda_externa"))return{rows:saleStatus?[{id:1,situacao:saleStatus,valida:saleValid}]:[]};
+   if(text.startsWith("SELECT situacao FROM vendas_externas"))return{rows:[{situacao:saleStatus}]};
    if(text.includes("FROM usuarios_app"))return{rows:access?[{id:10,nuvemshopStoreId:"67890",accessToken:"ficticio"}]:[]};
    if(text.includes("pg_try_advisory_lock"))return{rows:[{locked:lock}]};
    if(text.includes("pg_advisory_unlock"))return{rows:[{unlocked:true}]};
@@ -26,7 +31,7 @@ before(async()=>{
  }));
  repository=(await import("../src/stock/repository.js")).stockRepository;
 });
-beforeEach(()=>{queries=[];released=undefined;access=true;lock=true;installationLock=true;found=true;unresolved=false;rowCount=1;fail=undefined;});
+beforeEach(()=>{queries=[];released=undefined;access=true;lock=true;installationLock=true;found=true;unresolved=false;rowCount=1;fail=undefined;saleStatus=undefined;saleValid=true;});
 after(()=>{mock.restoreAll(); if(previous===undefined)delete process.env.DATABASE_URL;else process.env.DATABASE_URL=previous;});
 it("cria usando somente colunas originais, lock PostgreSQL e identidade gerada no banco",async()=>{
  await repository.withLock(auth,command,async context=>{assert.equal(await context.hasUnresolved(),false);assert.equal((await context.create(command)).id,7);});
@@ -82,4 +87,26 @@ it("descarta conexão quebrada e não expõe erros internos",async()=>{
  await repository.withLock(auth,7,async()=>{events.emit("error",new Error("interno"));});assert.equal(released,true);assert.equal(events.listenerCount("error"),0);
  fail="SELECT pg_advisory_unlock";await repository.withLock(auth,command,async()=>{});assert.equal(released,true);
  fail="INSERT";await assert.rejects(repository.withLock(auth,command,c=>c.create(command)),error=>{assert.ok(error instanceof Error&&!error.message.includes("erro-sensivel"));return true;});
+});
+it("baixa ligada a venda cancelada é bloqueada também pela rota legada, sem consulta remota",async()=>{
+ const enabled=(await import("../src/stock/repository.js")).createStockRepository((await import("../src/db/client.js")).pool,true);
+ saleStatus="cancelada";
+ const client={async read(){assert.fail("Não deve consultar");},async update(){assert.fail("Não deve enviar");}};
+ await assert.rejects(decreaseStock(enabled,client,"67890",auth,7),{status:409});
+ assert.ok(queries.some(query=>query.text.includes("pg_try_advisory_lock(1372859531")));
+ assert.ok(queries.some(query=>query.text.includes("pg_advisory_unlock(1372859531")));
+});
+it("desativar a extensão comercial não remove a proteção das vendas já existentes",async()=>{
+ saleStatus="cancelada";
+ const client={async read(){assert.fail("Não deve consultar");},async update(){assert.fail("Não deve enviar");}};
+ await assert.rejects(decreaseStock(repository,client,"67890",auth,7),{status:409});
+ assert.ok(queries.some(query=>query.text.includes("FROM itens_venda_externa")));
+});
+it("vínculo divergente impede execução e confere loja, autor, produto, variante e quantidade",async()=>{
+ saleStatus="confirmada";saleValid=false;
+ const client={async read(){assert.fail("Não deve consultar");},async update(){assert.fail("Não deve enviar");}};
+ await assert.rejects(decreaseStock(repository,client,"67890",auth,7),{status:409});
+ const query=queries.find(query=>query.text.includes("FROM itens_venda_externa"))!;
+ assert.match(query.text,/v.loja_id=\$2 AND v.usuario_id=\$3 AND i.produto_id=\$4 AND i.variante_id=\$5 AND i.quantidade=\$6/);
+ assert.deepEqual(query.values,[7,10,1,"100","101",2]);
 });

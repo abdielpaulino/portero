@@ -10,7 +10,14 @@ it("demo conectada funciona sem Redis nem credenciais administrativas do OAuth",
   assert.deepEqual(runtime.integration, { storeId: "456", userAgent: local.NUVEMSHOP_USER_AGENT });
   assert.equal(runtime.nuvemshop, undefined);
   assert.equal(runtime.stockEnabled, false);
+  assert.equal(runtime.externalSalesEnabled, false);
+  assert.equal(runtime.onlineOrdersEnabled, false);
   assert.equal(readRuntime({ ...local, STOCK_DECREASES_ENABLED: "true" }).stockEnabled, true);
+});
+it("ativação comercial e leitura de pedidos são independentes e recusam flags inválidas", () => {
+  assert.equal(readRuntime({ ...local, EXTERNAL_SALES_ENABLED: "true" }).onlineOrdersEnabled, false);
+  assert.equal(readRuntime({ ...local, ONLINE_ORDERS_ENABLED: "true" }).externalSalesEnabled, false);
+  assert.throws(() => readRuntime({ ...local, EXTERNAL_SALES_ENABLED: "sim" }));
 });
 it("compatibilidade com ID antigo da demo é apenas local", () => {
   assert.equal(readRuntime({ ...local, NUVEMSHOP_STORE_ID: "", NUVEMSHOP_DEMO_STORE_ID: "456" }).integration.storeId, "456");

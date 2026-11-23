@@ -43,8 +43,9 @@ export default function HistoryPage() {
   return <div className={styles.container}>
     <div className={styles.header}>
       <h1 className={styles.title}>Histórico de baixas</h1>
-      <p className={styles.subtitle}>Vendas externas registradas no PORTERO</p>
+      <p className={styles.subtitle}>Movimentações de estoque; baixas antigas não comprovam vendas pagas.</p>
       <Link href="/inventory">Voltar ao inventário</Link>
+      <Link href="/sales">Vendas externas e histórico financeiro</Link>
     </div>
     <div className={styles.list} aria-busy={loading}>
       <button type="button" className={styles.filterPill} disabled={loading} onClick={() => void carregar(1)}>Atualizar histórico</button>
