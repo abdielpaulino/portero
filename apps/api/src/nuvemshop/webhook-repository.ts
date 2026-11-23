@@ -36,6 +36,11 @@ export function createWebhookRepository(database: Pool, timeoutMs = 1_500): Webh
           checkInstallation(current.rows, storeId);
           const lojaId = current.rows[0].id;
           if (event === "app/store_redact") {
+            const operational = await query(`SELECT to_regclass('public.convites_conta')::text AS convites,
+              to_regclass('public.conferencias_baixa')::text AS conferencias,to_regclass('public.configuracoes_loja')::text AS configuracoes`);
+            if (operational.rows[0]?.convites) await query("DELETE FROM convites_conta WHERE loja_id = $1", [lojaId]);
+            if (operational.rows[0]?.conferencias) await query("DELETE FROM conferencias_baixa WHERE loja_id = $1", [lojaId]);
+            if (operational.rows[0]?.configuracoes) await query("DELETE FROM configuracoes_loja WHERE loja_id = $1", [lojaId]);
             const extension = await query("SELECT to_regclass('public.vendas_externas')::text AS tabela");
             if (extension.rows[0]?.tabela) await query("DELETE FROM vendas_externas WHERE loja_id = $1", [lojaId]);
             await query("DELETE FROM baixas_estoque WHERE loja_id = $1", [lojaId]);

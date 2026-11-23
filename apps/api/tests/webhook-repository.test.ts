@@ -15,7 +15,7 @@ after(() => { if (previous === undefined) delete process.env.DATABASE_URL; else 
 type Store = { id: number; nuvemshop_store_id: string; access_token: string; scope: string | null; status: string };
 const store: Store = { id: 8, nuvemshop_store_id: "123", access_token: "token-ficticio", scope: "write_products", status: "pendente" };
 function database(initial: Store[] = [store], options: {
-  locked?: boolean; fail?: string; hang?: string; timeoutMs?: number; commercial?: boolean;
+  locked?: boolean; fail?: string; hang?: string; timeoutMs?: number; commercial?: boolean; operational?: boolean;
 } = {}) {
   let rows = structuredClone(initial), snapshot = structuredClone(initial), released = false;
   let connections = 0;
@@ -29,6 +29,7 @@ function database(initial: Store[] = [store], options: {
     if (text === "BEGIN") snapshot = structuredClone(rows);
     if (text === "ROLLBACK") rows = snapshot;
     if (text.includes("pg_try_advisory_xact_lock")) return { rows: [{ locked: options.locked ?? true }] };
+    if (text.includes("to_regclass('public.convites_conta')")) return { rows: [{ convites: options.operational ? "convites_conta" : null, conferencias: options.operational ? "conferencias_baixa" : null, configuracoes: options.operational ? "configuracoes_loja" : null }] };
     if (text.includes("to_regclass")) return { rows: [{ tabela: options.commercial ? "vendas_externas" : null }] };
     if (text.startsWith("SELECT id")) return { rows };
     if (text.startsWith("UPDATE lojas")) {
@@ -89,6 +90,15 @@ it("exclusão remove a extensão comercial antes das baixas, mesmo sem depender 
   const deletions = db.queries.filter(query => query.text.startsWith("DELETE"));
   assert.equal(deletions[0].text, "DELETE FROM vendas_externas WHERE loja_id = $1");
   assert.equal(deletions[1].text, "DELETE FROM baixas_estoque WHERE loja_id = $1");
+  assert.equal(db.queries.at(-1)!.text, "COMMIT");
+});
+it("exclusão remove convites, evidências e preferências antes dos registros originais, mesmo com flags desativadas", async () => {
+  const db = database([store], { commercial: true, operational: true });
+  await db.repository.handle("123", "app/store_redact");
+  assert.deepEqual(db.queries.filter(query => query.text.startsWith("DELETE")).map(query => query.text), [
+    "DELETE FROM convites_conta WHERE loja_id = $1", "DELETE FROM conferencias_baixa WHERE loja_id = $1", "DELETE FROM configuracoes_loja WHERE loja_id = $1",
+    "DELETE FROM vendas_externas WHERE loja_id = $1", "DELETE FROM baixas_estoque WHERE loja_id = $1", "DELETE FROM usuarios_app WHERE loja_id = $1", "DELETE FROM acessos_permitidos WHERE loja_id = $1", "DELETE FROM lojas WHERE id = $1",
+  ]);
   assert.equal(db.queries.at(-1)!.text, "COMMIT");
 });
 it("recusa banco de outra loja, múltiplas lojas e lock ocupado sem alterar registros", async () => {

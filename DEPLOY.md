@@ -200,3 +200,19 @@ automaticamente uma execução incerta.
 - [Instalação](https://nuvemshop.dev/api/guides/installation)
 - [Locks PostgreSQL](https://www.postgresql.org/docs/17/explicit-locking.html)
 - [Express na Vercel](https://vercel.com/docs/frameworks/backend/express)
+
+## Extensão operacional e ativação
+
+Além da migração comercial, revisar `apps/api/sql/20261122-operational-extension.sql`.
+Ela cria apenas `convites_conta`, `conferencias_baixa`, `configuracoes_loja` e
+`alertas_estoque`, com RLS. Não altera as quatro tabelas originais. Os arquivos
+não foram executados. Não usar SQL inicial, geração automática ou scripts abandonados.
+
+Aplicar somente após validar as migrações em PostgreSQL de teste e publicar
+um backend compatível com os novos objetos e sua exclusão. Conferir o papel
+SQL da API em `20261122-operational-review.sql`; não conceder acesso ao navegador.
+
+O webhook apaga convites, conferências e preferências/alertas antes dos registros
+originais, mesmo com flags desativadas. Após esses dados existirem, retornar apenas
+a esta versão ou outra compatível com sua exclusão; desativar flags sem apagar
+tabelas. Os commits anteriores à extensão operacional não conhecem suas FKs.
