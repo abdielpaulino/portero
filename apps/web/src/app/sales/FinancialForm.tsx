@@ -8,11 +8,12 @@ export default function FinancialForm({ sale, session, onChange }: { sale: Exter
   const [type, setType] = useState("recebimento"), [value, setValue] = useState(""), [method, setMethod] = useState(sale.formaPagamento);
   const [date, setDate] = useState(""), [busy, setBusy] = useState(false), [message, setMessage] = useState("");
   const [invalid, setInvalid] = useState(false);
+  const [failed, setFailed] = useState(false);
   const storageKey = `portero:financeiro:${session.loja.id}:${session.usuarioId}:${sale.id}`;
   const pendingRequest = usePending(storageKey);
   async function send(event: React.FormEvent) {
     event.preventDefault(); if (busy) return;
-    setBusy(true); setMessage("");
+    setBusy(true); setMessage(""); setFailed(false);
     try {
       let pending = window.localStorage.getItem(storageKey);
       if (!pending) {
@@ -22,7 +23,7 @@ export default function FinancialForm({ sale, session, onChange }: { sale: Exter
       const saved = JSON.parse(pending);
       const updated = await fetchSale(`/${sale.id}/financial-events`, { method: "POST", headers: { "Content-Type": "application/json", "Idempotency-Key": saved.key }, body: JSON.stringify(saved.body) });
       clearPending(storageKey); onChange(updated); setMessage("Movimento informado registrado. Nenhuma cobrança ou alteração de estoque foi realizada.");
-    } catch (error) { setInvalid(error instanceof CommercialError && error.status === 400); setMessage(`${error instanceof Error ? error.message : "Resposta perdida."} A mesma chave será preservada para recuperação.`); }
+    } catch (error) { setFailed(true); setInvalid(error instanceof CommercialError && error.status === 400); setMessage(`${error instanceof Error ? error.message : "Resposta perdida."} A mesma chave será preservada para recuperação.`); }
     finally { setBusy(false); }
   }
   return <div>
@@ -38,6 +39,6 @@ export default function FinancialForm({ sale, session, onChange }: { sale: Exter
     </form>
     {pendingRequest && <p>Há uma solicitação salva. A recuperação usa seus dados originais e a mesma chave.</p>}
     {invalid && <button type="button" disabled={busy} onClick={() => { clearPending(storageKey); setInvalid(false); }}>Corrigir solicitação recusada como inválida</button>}
-    {message && <p role="status">{message}</p>}
+    {message && <p role={failed ? "alert" : "status"}>{message}</p>}
   </div>;
 }
