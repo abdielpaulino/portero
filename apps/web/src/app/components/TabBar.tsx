@@ -50,15 +50,17 @@ const TABS = [
 export default function TabBar() {
   const router = useRouter();
   const pathname = usePathname();
+  const activePath = pathname?.startsWith("/productDetails") || pathname === "/history" ? "/inventory" : pathname;
 
   return (
-    <nav className={styles.tabbar}>
+    <nav className={styles.tabbar} aria-label="Navegação principal">
       {TABS.map((tab) => (
         <button
           type="button"
           key={tab.href}
           className={styles.tabItem}
-          data-active={pathname === tab.href}
+          data-active={activePath === tab.href}
+          aria-current={activePath === tab.href ? "page" : undefined}
           onClick={() => router.push(tab.href)}
         >
           {tab.icon}

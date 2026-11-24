@@ -11,10 +11,10 @@ export default function DailyCommercialChart({ period, external, orders, onlineL
   const { series, incompletos } = dailyCommercialSeries(period, externalRows, onlineEnabled && onlineLoaded ? orders : undefined);
   return <section className={styles.container} aria-label="Valor comercial diário">
     <h3>Valor comercial por dia</h3>
-    <p>Período {period} · America/Sao_Paulo · sem frete. Não representa valor recebido.</p>
-    <p>Vendas externas confirmadas pela data informada da venda; pedidos online não cancelados pela criação, incluindo pagamentos pendentes.</p>
+    <p>Período {period} · horário de Brasília · sem frete. Não representa valor recebido.</p>
+    <details><summary>Critérios dos valores</summary><p>Vendas externas confirmadas pela data informada da venda; pedidos online não cancelados pela criação, incluindo pagamentos pendentes. Fuso: America/Sao_Paulo.</p></details>
     <p>Externas: {externalRows !== undefined ? "todos os registros locais do período" : "série indisponível ou desativada"}.</p>
-    <p>Online: {onlineLoaded ? `páginas 1 a ${page}; ${onlinePartial ? "valores parciais" : "fim da paginação informado pela API"}` : "série indisponível ou desativada"}.</p>
+    <p>Online: {onlineLoaded ? `páginas 1 a ${page}; ${onlinePartial ? "valores parciais" : "consulta concluída"}` : "série indisponível ou desativada"}.</p>
     {onlineLoaded && onlinePartial && <p>Zeros online significam ausência de valor nas páginas consultadas, sem comprovar ausência de pedidos no dia.</p>}
     {incompletos > 0 && <p role="status">{incompletos} pedido(s) com dados incompletos excluídos dos valores; a série online é parcial.</p>}
     {!series.length && <p>Sem valores comerciais conhecidos nos registros consultados.</p>}

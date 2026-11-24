@@ -45,10 +45,10 @@ export default function CommercialDashboard({ revision = 0 }: { revision?: numbe
     <label>Período <input type="month" value={period} disabled={busy} onChange={event => {
       setExternal(null); setOrders([]); setPage(0); setMore(false); setExternalError(""); setOnlineError(""); setPeriod(event.target.value);
     }} /></label>
-    <p className={styles.cardHint}>America/Sao_Paulo · valores sem frete · moedas separadas. Valor vendido e valor dos pedidos não representam dinheiro recebido.</p>
+    <p className={styles.cardHint}>Valores sem frete e por moeda. Valor vendido e valor dos pedidos não representam dinheiro recebido.</p>
     <DailyCommercialChart period={period} external={external} orders={orders} onlineLoaded={page > 0} onlinePartial={more || !!onlineError}
       externalEnabled={!!session.vendasExternasHabilitadas} onlineEnabled={!!session.pedidosOnlineHabilitados} page={page} />
-    {session.vendasExternasHabilitadas && <div>
+    {session.vendasExternasHabilitadas && <div className={styles.commercialSection}>
       <h3>Vendas externas — PORTERO</h3><Link href="/sales">Registrar venda e consultar histórico comercial</Link>
       {externalError && <p role="alert">{externalError}</p>}
       {!external && !externalError && <p role="status">Carregando registros externos...</p>}
@@ -65,7 +65,7 @@ export default function CommercialDashboard({ revision = 0 }: { revision?: numbe
         <p>{external.estoque.pendentes} item(ns) com estoque pendente ou parcial; {external.estoque.incertas} exigem conferência.</p>
       </>}
     </div>}
-    {session.pedidosOnlineHabilitados && <div>
+    {session.pedidosOnlineHabilitados && <div className={styles.commercialSection}>
       <h3>Pedidos da loja online — Nuvemshop</h3>
       <p>Período {period}, pela criação do pedido. Canal: loja online. Esta consulta não altera estoque.</p>
       {onlineError && <p role="alert">{onlineError}</p>}

@@ -35,16 +35,16 @@ export default function ActivatePage() {
   }
   return <div className={styles.container}>
     <div className={styles.header}><h1 className={styles.title}>Ativar conta</h1><p className={styles.subtitle}>Acesso administrativo por convite</p></div>
-    {done ? <p role="status">Conta criada. <Link href="/login">Entrar no PORTERO</Link></p> : <form method="post" action="/api/auth/invitations/activate" className={`${styles.card} ${styles.form}`} onSubmit={activate}>
+    {done ? <p className={styles.success} role="status">Conta criada. <Link href="/login">Entrar no PORTERO</Link></p> : <form method="post" action="/api/auth/invitations/activate" className={`${styles.card} ${styles.form}`} onSubmit={activate} aria-busy={busy}>
       <label className={styles.field}>E-mail autorizado<input type="email" value={email} readOnly /></label>
       <label className={styles.field}>Nome<input value={nome} onChange={event => setNome(event.target.value)} required maxLength={100} autoComplete="name" /></label>
       <label className={styles.field}>Senha<input type="password" value={password} onChange={event => setPassword(event.target.value)} minLength={12} required autoComplete="new-password" /></label>
       <label className={styles.field}>Confirmar senha<input type="password" value={confirmation} onChange={event => setConfirmation(event.target.value)} minLength={12} required autoComplete="new-password" /></label>
-      <p>Use pelo menos 12 caracteres e até 72 bytes. Não compartilhe o convite.</p>
+      <p className={styles.help}>Use pelo menos 12 caracteres. Não compartilhe o convite.</p>
       <button type="submit" className={styles.button} disabled={busy || !email}>{busy ? "Verificando..." : "Criar conta"}</button>
       <noscript>JavaScript é necessário para ativar a conta com segurança.</noscript>
     </form>}
-    {error && <p role="alert">{error}</p>}
-    <p>Se a resposta da criação se perder, tente <Link href="/login">entrar</Link> antes de solicitar outro convite.</p>
+    {error && <p className={styles.error} role="alert">{error}</p>}
+    <p className={styles.help}>Se a resposta da criação se perder, tente <Link href="/login">entrar</Link> antes de solicitar outro convite.</p>
   </div>;
 }

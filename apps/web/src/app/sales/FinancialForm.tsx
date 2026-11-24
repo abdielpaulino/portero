@@ -3,6 +3,7 @@ import { useState } from "react";
 import { CommercialError, fetchSale, formatMoney, type ExternalSale } from "./data";
 import { clearPending, savePending, usePending } from "./pending";
 import type { Session } from "../auth/session";
+import styles from "../inventory/inventory.module.css";
 
 export default function FinancialForm({ sale, session, onChange }: { sale: ExternalSale; session: Session; onChange: (sale: ExternalSale) => void }) {
   const [type, setType] = useState("recebimento"), [value, setValue] = useState(""), [method, setMethod] = useState(sale.formaPagamento);
@@ -26,19 +27,22 @@ export default function FinancialForm({ sale, session, onChange }: { sale: Exter
     } catch (error) { setFailed(true); setInvalid(error instanceof CommercialError && error.status === 400); setMessage(`${error instanceof Error ? error.message : "Resposta perdida."} A mesma chave será preservada para recuperação.`); }
     finally { setBusy(false); }
   }
-  return <div>
+  return <section className={styles.financialForm}>
+    <h3>Recebimentos e estornos</h3>
     <p>Recebido informado: {formatMoney(sale.valorRecebido, sale.moeda)} · Estornado informado: {formatMoney(sale.valorEstornado, sale.moeda)}</p>
-    <form onSubmit={send}>
+    <form onSubmit={send} className={styles.salesForm} aria-busy={busy}>
       <fieldset disabled={busy || !!pendingRequest}>
+      <legend>Registrar movimento</legend><div className={styles.formGrid}>
       <label>Movimento <select value={type} onChange={e => setType(e.target.value)} disabled={busy}><option value="recebimento">Recebimento</option><option value="estorno">Estorno</option></select></label>{" "}
       <label>Valor <input required value={value} onChange={e => setValue(e.target.value)} inputMode="decimal" placeholder="0.00" disabled={busy} /></label>{" "}
       <label>Forma <input required value={method} onChange={e => setMethod(e.target.value)} disabled={busy} /></label>{" "}
-      <label>Data (fuso do navegador) <input required type="datetime-local" value={date} onChange={e => setDate(e.target.value)} disabled={busy} /></label>{" "}
+      <label>Data (horário local) <input required type="datetime-local" value={date} onChange={e => setDate(e.target.value)} disabled={busy} /></label>
+      </div>
       </fieldset>
-      <button disabled={busy} type="submit" formNoValidate={!!pendingRequest}>Registrar ou recuperar mesmo movimento</button>
+      <button className={styles.primaryButton} disabled={busy} type="submit" formNoValidate={!!pendingRequest}>Registrar ou recuperar mesmo movimento</button>
     </form>
     {pendingRequest && <p>Há uma solicitação salva. A recuperação usa seus dados originais e a mesma chave.</p>}
-    {invalid && <button type="button" disabled={busy} onClick={() => { clearPending(storageKey); setInvalid(false); }}>Corrigir solicitação recusada como inválida</button>}
+    {invalid && <button className={styles.secondaryButton} type="button" disabled={busy} onClick={() => { clearPending(storageKey); setInvalid(false); }}>Corrigir solicitação recusada como inválida</button>}
     {message && <p role={failed ? "alert" : "status"}>{message}</p>}
-  </div>;
+  </section>;
 }
