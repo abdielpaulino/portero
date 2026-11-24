@@ -5,7 +5,7 @@
   align-items: center;
   padding: 1rem;
   padding-top: var(--padding-top);
-  padding-bottom: 5rem;
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom));
   background: var(--light-bg);
 }
 
@@ -16,6 +16,7 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 1rem;
+  gap: 1rem;
 }
 
 .backBtn {
@@ -56,6 +57,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  max-width: 380px;
+  margin: 0 auto;
+  border: 1px solid var(--border-color);
 }
 
 .heroImg {
@@ -90,6 +94,7 @@
   font-weight: 800;
   color: var(--dark-font);
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .sku {
@@ -121,6 +126,18 @@
   color: var(--dark-font);
   margin: 0 0 0.75rem 0;
 }
+
+.section p { font-size: 0.88rem; margin-bottom: 0.65rem; overflow-wrap: anywhere; }
+.section form { display: flex; flex-direction: column; gap: 0.75rem; }
+.section form > div { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.section input { min-height: 44px; width: 100%; max-width: 8rem; padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 8px; color: var(--dark-font); background: white; font-size: 1rem; }
+.section button, .stockLink, .backBtn { min-height: 44px; padding: 0.6rem 0.8rem; border: 1px solid var(--border-color); border-radius: 8px; background: white; color: var(--purple); font-weight: 600; font-size: 0.85rem; cursor: pointer; }
+.section button:disabled, .stockLink:disabled { opacity: 0.6; cursor: not-allowed; }
+.variationPill[data-active="true"] { background: #eef2ff; border-color: var(--purple); }
+.section a { color: var(--purple); text-decoration: underline; text-underline-offset: 3px; }
+.section [role="alert"], .container > [role="alert"] { background: #fff1f2; color: #9f1239; padding: 0.85rem; border-radius: 8px; }
+.section [role="status"], .container > [role="status"] { background: #eef2ff; color: #3730a3; padding: 0.85rem; border-radius: 8px; }
+.container > p { width: 100%; max-width: var(--max-width); margin-bottom: 1rem; font-size: 0.88rem; }
 
 .variations {
   display: flex;

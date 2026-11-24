@@ -97,8 +97,8 @@ export default function InventoryPage() {
         <p className={styles.subtitle}>Produtos e variantes da loja</p>
         {preferences && <p>Limite de ruptura: {preferences.limiteRuptura}. Atualização da tela: {preferences.atualizacaoAutomatica ? `${preferences.intervaloSegundos}s` : "manual"}.</p>}
         {preferencesError && <p role="alert">{preferencesError}</p>}
-        <Link href="/history">Histórico de baixas</Link>
-        <Link href="/sales">{vendasHabilitadas ? "Registrar venda externa" : "Vendas externas"}</Link>
+        <div className={styles.actions}><Link href="/history">Histórico de baixas</Link>
+        <Link href="/sales">{vendasHabilitadas ? "Registrar venda externa" : "Vendas externas"}</Link></div>
         <p>Dar baixa registra somente estoque. Use a venda externa para registrar canal, valores e pagamento.</p>
         {vendasHabilitadas === false && <p>Registro de vendas externas ainda não habilitado nesta instalação. Consulte a disponibilidade em Vendas.</p>}
         <button type="button" className={styles.filterPill} disabled={loading || baixasEmAndamento > 0}
@@ -122,6 +122,7 @@ export default function InventoryPage() {
         </svg>
         <input
           type="text"
+          aria-label="Buscar produtos, variantes ou SKUs"
           className={styles.searchInput}
           placeholder="Itens, variantes, SKUs..."
           value={busca}
@@ -241,7 +242,7 @@ export default function InventoryPage() {
           ))}
       </div>
 
-      {!loading && !erro && itensFiltrados.length > 0 && <nav aria-label="Páginas do catálogo">
+      {!loading && !erro && itensFiltrados.length > 0 && <nav className={styles.pagination} aria-label="Páginas do catálogo">
         <p>Página {currentPage} de {pageCount} · {itensFiltrados.length} variantes encontradas no catálogo consultado</p>
         <button type="button" className={styles.filterPill} disabled={currentPage <= 1 || baixasEmAndamento > 0} onClick={() => setPage(currentPage - 1)}>Anterior</button>
         <button type="button" className={styles.filterPill} disabled={currentPage >= pageCount || baixasEmAndamento > 0} onClick={() => setPage(currentPage + 1)}>Próxima</button>

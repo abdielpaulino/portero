@@ -5,12 +5,13 @@
   align-items: center;
   padding: 1rem;
   padding-top: var(--padding-top);
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom));
   background: var(--light-bg);
 }
 
 .header {
   width: 100%;
-  max-width: 380px;
+  max-width: var(--max-width);
   margin-bottom: 1.25rem;
 }
 
@@ -32,7 +33,7 @@
   border: 2px solid var(--border-color);
   border-radius: var(--border);
   width: 100%;
-  max-width: 380px;
+  max-width: var(--max-width);
   margin-bottom: 1rem;
 }
 
@@ -99,6 +100,7 @@
   display: flex;
   flex-direction: column;
   flex: 1;
+  min-width: 0;
 }
 
 .itemTitle {
@@ -147,12 +149,12 @@
 }
 
 .numberInput {
-  width: 36px;
-  height: 30px;
+  width: 72px;
+  height: 44px;
   text-align: center;
   border: 2px solid var(--purple);
   border-radius: 8px;
-  font-size: 0.85rem;
+  font-size: 1rem;
   font-weight: 600;
   color: var(--dark-font);
   background-color: var(--conteiner-bg);
@@ -178,10 +180,21 @@
   font-weight: 700;
   cursor: pointer;
   width: 100%;
-  max-width: 380px;
+  max-width: var(--max-width);
 }
 
 .logout:hover {
   background: #ffe4e6;
 }
+
+.account > div:last-child { min-width: 0; overflow-wrap: anywhere; }
+.list > p { padding: 0.75rem 1.1rem; margin: 0; font-size: 0.85rem; }
+.list > button { margin: 0.75rem 1.1rem; padding: 0.7rem 1rem; min-height: 44px; color: var(--purple); background: white; border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; font-weight: 600; }
+.list > button:first-of-type { background: var(--purple); color: white; }
+.list button:disabled, .logout:disabled { opacity: 0.6; cursor: not-allowed; }
+.item label { width: 100%; display: flex; flex-direction: column; gap: 0.5rem; font-size: 0.85rem; font-weight: 600; }
+.item label input { width: 100%; min-height: 44px; padding: 0.65rem 0.75rem; border: 1px solid #cbd5e1; border-radius: 8px; color: var(--dark-font); background: white; font-size: 1rem; font-weight: 400; }
+.container > [role="alert"], .container > [role="status"] { width: 100%; max-width: var(--max-width); margin-bottom: 1rem; padding: 1rem; border-radius: 8px; overflow-wrap: anywhere; font-size: 0.88rem; }
+.container > [role="alert"] { color: #9f1239; background: #fff1f2; }
+.container > [role="status"] { color: #3730a3; background: #eef2ff; }
 

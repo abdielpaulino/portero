@@ -88,7 +88,7 @@ export default function SettingsPage() {
       </div>
 
       <div className={`${styles.card} ${styles.list}`}>
-        {!preferences && <p className={styles.itemSubtitle}>Preferências persistentes aguardam ativação e consulta administrativa.</p>}
+        {!preferences && <p className={styles.itemSubtitle} role={session ? undefined : "status"}>{!session ? "Carregando preferências..." : "Preferências indisponíveis. Solicite a habilitação à administração."}</p>}
         <div className={styles.item}>
           <span className={styles.itemIcon}>
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -166,7 +166,7 @@ export default function SettingsPage() {
         <p className={styles.itemSubtitle}>A atualização automática consulta o estoque enquanto a tela estiver visível. Não cria vendas nem altera o saldo.</p>
         <p className={styles.itemSubtitle}>Com a tela fechada, o monitoramento usa o agendamento diário da Vercel, sujeito ao plano e à validação do envio.</p>
         {preferences && <><button type="button" disabled={saving} onClick={() => void save()}>Salvar preferências</button>
-          <p>{preferences.envioConfigurado ? "Adaptador de envio configurado; validar a entrega ao destinatário." : "Envio de notificações ainda não configurado ou habilitado."}</p>
+          <p>{preferences.envioConfigurado ? "Envio configurado. Confirme o recebimento no e-mail informado." : "Envio de notificações ainda não configurado ou habilitado."}</p>
           <button type="button" disabled={saving || !preferences.envioConfigurado || !preferences.notificacoesAtivas} onClick={() => void monitor()}>Executar monitoramento</button>
           <p>Último lote: {preferences.monitorEm ? new Date(preferences.monitorEm).toLocaleString("pt-BR") : "não executado"} · {preferences.monitorResultado ?? "sem resultado"}</p>
           {preferences.alertas?.map(alert => <p key={alert.eventoId}>{alert.nome} · variante {alert.varianteId}: {alert.estado}. Evento {alert.eventoId}</p>)}

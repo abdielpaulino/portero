@@ -73,7 +73,7 @@ it("perda da criação conserva a chave e o corpo; reenvio salva ID sem executar
     await view.fill("Produto e variante", "100:101"); await view.click("Adicionar item");
     await view.fill("Canal", "WhatsApp"); await view.fill("Forma de pagamento", "Pix"); await view.fill("Data da venda", "2026-11-01T12:00");
     await view.submit(); assert.ok(browser.localStorage.getItem("portero:venda:10:1"));
-    assert.match(view.container.textContent!, /requisição salva/);
+    assert.match(view.container.textContent!, /registro aguardando confirmação/);
     fail = false; await view.submit();
     assert.deepEqual(attempts[0], attempts[1]); assert.equal(browser.localStorage.getItem("portero:venda:10:1:id"), "1");
     assert.match(view.container.textContent!, /Sincronize os itens separadamente/); assert.equal(attempts.length, 2);

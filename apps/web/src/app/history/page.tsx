@@ -52,8 +52,8 @@ export default function HistoryPage() {
     <div className={styles.header}>
       <h1 className={styles.title}>Histórico de baixas</h1>
       <p className={styles.subtitle}>Movimentações de estoque; baixas antigas não comprovam vendas pagas.</p>
-      <Link href="/inventory">Voltar ao inventário</Link>
-      <Link href="/sales">Vendas externas e histórico financeiro</Link>
+      <div className={styles.actions}><Link href="/inventory">Voltar ao inventário</Link>
+      <Link href="/sales">Vendas externas e histórico financeiro</Link></div>
     </div>
     <div className={styles.list} aria-busy={loading}>
       <button type="button" className={styles.filterPill} disabled={loading} onClick={() => void carregar(1)}>Atualizar histórico</button>
@@ -62,7 +62,7 @@ export default function HistoryPage() {
         <button type="button" className={styles.filterPill} disabled={loading} onClick={() => void carregar(failedPage)}>Tentar novamente</button></div>}
       {!loading && !erro && !items.length && <p className={styles.empty}>Nenhuma baixa registrada.</p>}
       {items.map((item) => <article key={item.id} className={historyStyles.card}>
-        <strong>Baixa #{item.id} · {statusLabel(item.status)}</strong>
+        <div className={historyStyles.cardHeader}><strong>Baixa #{item.id}</strong><span className={historyStyles.badge} data-status={item.status}>{statusLabel(item.status)}</span></div>
         <p>Variante {item.varianteId} · SKU: {item.sku || "—"}</p>
         <p>Produto {item.produtoId} · Quantidade: {item.quantidade}</p>
         <p>Usuário: {item.usuario?.nome || item.usuario?.email || "Não disponível"}</p>

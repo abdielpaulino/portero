@@ -50,7 +50,6 @@ export default function DashboardPage() {
   }, [preferences, loading]);
   return <div className={styles.container} aria-busy={loading}>
     {preferencesError && <p role="alert">{preferencesError}</p>}
-    {data && preferences && <p>Variantes em ruptura até {preferences.limiteRuptura}: {data.emRuptura}</p>}
     <div className={styles.header}>
       <div><h1 className={styles.title}>Fluxo do estoque</h1><p className={styles.subtitle}>Inventário e baixas da loja</p></div>
       <button className={styles.refreshButton} type="button" disabled={loading} onClick={atualizar}>Atualizar</button>
@@ -58,6 +57,7 @@ export default function DashboardPage() {
     {loading && <p className={styles.notice} role="status">Carregando indicadores...</p>}
     {error && <p className={styles.notice} role="alert">{error} <Link href="/login">Entrar novamente</Link></p>}
     {data && <>
+      {preferences && <p className={styles.notice}>Variantes em ruptura até {preferences.limiteRuptura}: {data.emRuptura}</p>}
       <p className={styles.notice}>Contagem de todas as páginas consultadas do catálogo. <Link href="/inventory">Ver inventário</Link></p>
       <div className={styles.statsGrid}>
         <div className={styles.statCard}><span className={styles.statLabel}>Produtos carregados</span><span className={styles.statValue}>{data.produtos}</span></div>

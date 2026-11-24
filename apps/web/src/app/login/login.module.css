@@ -1,17 +1,18 @@
 .container {
-  min-height: 100vh;
+  min-height: 100svh;
   display: flex;
   flex-direction:column;
   justify-content: stretch;
   align-items: center;
   padding: 1rem;
-  padding-top: var(--padding-top);
+  padding-top: clamp(2.5rem, 12vh, 7rem);
+  gap: 1.25rem;
   background: var(--light-bg);
 }
 
 .header{
   width: 100%;
-  max-width: 380px;
+  max-width: 400px;
   display: flex;
   flex-direction: column;
   align-items: start;
@@ -19,11 +20,11 @@
 
 .card {
   background: var(--conteiner-bg);
-  padding: 2rem 1rem;
-  border: 2px solid var(--border-color);
+  padding: 1.5rem;
+  border: 1px solid var(--border-color);
   border-radius: var(--border);
   width: 100%;
-  max-width: 380px;
+  max-width: 400px;
 }
 
 .form {
@@ -54,27 +55,27 @@
 }
 
 .field label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip: rect(0 0 0 0);
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--dark-font);
 }
 
 .field input,
 .field select {
-  padding: 0.9rem 1.25rem;
-  border: 2px solid var(--light-font);
+  width: 100%;
+  min-height: 46px;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid #cbd5e1;
   border-radius: var(--border);
   font-size: 1rem;
-  font-weight: 600;
-  color: var(--purple);
+  font-weight: 400;
+  color: var(--dark-font);
   background-color: var(--conteiner-bg);
 }
 
 .field input::placeholder {
   color: var(--light-font);
-  font-weight: 600;
+  font-weight: 400;
   opacity: 1;
 }
 
@@ -82,7 +83,7 @@
 .field select:focus {
   outline: none;
   border-color: var(--purple);
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--focus-ring);
 }
 
 .button {
@@ -98,7 +99,7 @@
 }
 
 .button:hover:not(:disabled) {
-  background: #333;
+  background: #4338ca;
 }
 
 .button:disabled,
@@ -122,4 +123,18 @@
   margin: 0;
   color: #b42318;
   font-size: 0.9rem;
+  background: #fff1f2;
+  padding: 0.85rem;
+  border-radius: 8px;
+  overflow-wrap: anywhere;
 }
+
+.field { font-size: 0.85rem; font-weight: 600; gap: 0.4rem; color: var(--dark-font); }
+.help { width: 100%; max-width: 400px; font-size: 0.82rem; color: var(--light-font); }
+.help a, .success a { color: var(--purple); text-decoration: underline; text-underline-offset: 3px; }
+.success { width: 100%; max-width: 400px; border-radius: var(--border); background: #f0fdf4; color: #166534; padding: 1rem; }
+.container > .error { width: 100%; max-width: 400px; }
+.card > h1, .card > [role="alert"] { margin-bottom: 1rem; }
+.field input[readonly] { background: var(--light-bg); color: var(--light-font); }
+
+@media (max-width: 380px) { .card { padding: 1.25rem; } }
