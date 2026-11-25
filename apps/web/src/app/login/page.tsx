@@ -3,6 +3,7 @@
 import { useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
 import styles from "./login.module.css";
+import { userMessage } from "../components/presentation";
 
 const subscribeHydration = () => () => {};
 
@@ -43,7 +44,7 @@ export default function LoginPage() {
         return;
       }
       if (!isAuthenticated(data)) {
-        setError("A API retornou uma resposta inválida. Tente novamente.");
+        setError("Não foi possível confirmar o acesso. Tente entrar novamente.");
         return;
       }
       setPassword("");
@@ -60,7 +61,7 @@ export default function LoginPage() {
   return (
     <div className={styles.container}>
       <div className={styles.header}>
-        <h1 className={styles.title}>Login</h1>
+        <h1 className={styles.title}>Entrar</h1>
         <p className={styles.subtitle}>Acesse sua conta</p>
       </div>
       <div className={styles.card}>
@@ -76,7 +77,7 @@ export default function LoginPage() {
             <input id="password" name="password" type="password" autoComplete="current-password" placeholder="Senha"
               value={password} onChange={(event) => setPassword(event.target.value)} disabled={loading} required />
           </div>
-          {error && <p className={styles.error} role="alert">{error}</p>}
+          {error && <p className={styles.error} role="alert">{userMessage(error, "Não foi possível entrar. Tente novamente.")}</p>}
           <button type="submit" className={styles.button} disabled={!hydrated || loading}>{loading ? "Aguarde..." : "Entrar"}</button>
         </form>
       </div>

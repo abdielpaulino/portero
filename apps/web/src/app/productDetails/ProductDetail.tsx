@@ -10,6 +10,7 @@ import { carregarSessao } from "../auth/session";
 import { carregarProduto, type ProductDetail } from "./data";
 import styles from "./productDetails.module.css";
 import { usePreferences } from "../settings/usePreferences";
+import { userMessage } from "../components/presentation";
 
 export default function ProductDetailView({ produtoId, varianteId }: { produtoId: string; varianteId?: string }) {
   const [product, setProduct] = useState<ProductDetail | null>(null);
@@ -56,14 +57,14 @@ export default function ProductDetailView({ produtoId, varianteId }: { produtoId
     return () => window.clearInterval(timer);
   }, [preferences, loading, busy, refresh]);
   return <div className={styles.container} aria-busy={loading}>
-    {preferencesError && <p role="alert">{preferencesError}</p>}
-    {item && preferences && item.quantidade !== null && item.quantidade <= preferences.limiteRuptura && <p role="status">Variante no limite de ruptura ({preferences.limiteRuptura}).</p>}
+    {preferencesError && <p role="alert">{userMessage(preferencesError)}</p>}
+    {item && preferences && item.quantidade !== null && item.quantidade <= preferences.limiteRuptura && <p role="status">Estoque baixo neste tamanho.</p>}
     <div className={styles.topbar}>
       <Link className={styles.backBtn} href="/inventory">Voltar</Link>
       <button type="button" className={styles.stockLink} disabled={loading || busy > 0} onClick={refresh}>Atualizar estoque</button>
     </div>
     {loading && <p role="status">Carregando produto...</p>}
-    {error && <div className={styles.section} role="alert"><p>{error}</p><Link href="/login">Entrar novamente</Link>{" "}
+    {error && <div className={styles.section} role="alert"><p>{userMessage(error)}</p><Link href="/login">Entrar novamente</Link>{" "}
       <button type="button" disabled={loading || busy > 0} onClick={refresh}>Tentar novamente</button></div>}
     {product && <>
       <div className={styles.heroWrapper}><div className={styles.hero}>
@@ -72,7 +73,7 @@ export default function ProductDetailView({ produtoId, varianteId }: { produtoId
       <div className={styles.infoWrapper}><h1 className={styles.itemName}>{product.nome}</h1>
         {item && <><p className={styles.sku}>SKU: {item.sku || "—"} · {quantidadeLabel(item)}</p><p className={styles.price}>{precoLabel(item)}</p></>}
       </div>
-      <div className={styles.section}><h2 className={styles.sectionTitle}>Variações disponíveis</h2>
+      <div className={styles.section}><h2 className={styles.sectionTitle}>Tamanho / variante</h2>
         <div className={styles.variations}>{product.items.map(variant => <button type="button" key={variant.id}
           className={styles.variationPill} data-active={variant.varianteId === selected} aria-pressed={variant.varianteId === selected}
           disabled={loading || busy > 0} onClick={() => { setSelected(variant.varianteId); setNotice(""); }}>{variant.variante}</button>)}</div>

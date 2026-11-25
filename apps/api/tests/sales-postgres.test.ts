@@ -94,7 +94,11 @@ it("migração e repositórios no PostgreSQL local descartável", { skip: localU
       await assert.rejects(repository.create(auth, randomUUID(), hash(input), input, [{ ...prepared[0], quantidade: 0 }]));
       assert.equal((await database.query("SELECT count(*) FROM vendas_externas")).rows[0].count, "1");
       assert.equal((await database.query("SELECT count(*) FROM movimentos_financeiros_venda")).rows[0].count, "1");
-      assert.deepEqual((await repository.summary(auth, "2026-11")).diario, [{ dia: "2026-11-01", moeda: "BRL", valor: "50.00" }]);
+      const summary = await repository.summary(auth, "2026-11");
+      assert.deepEqual(summary.diario, [{ dia: "2026-11-01", moeda: "BRL", valor: "50.00" }]);
+      assert.deepEqual(summary.gestao?.porMoeda, [{ moeda: "BRL", valorAReceber: "45.00", unidades: String(input.itens.reduce((sum, row) => sum + row.quantidade, 0)) }]);
+      assert.equal(summary.gestao?.vendasComPendencia, 1);
+      assert.equal(summary.gestao?.produtosMaisVendidos.length, new Set(input.itens.map(row => row.produtoId)).size);
     });
     await t.test("PostgreSQL rejeita NaN, infinitos, negativos, overflow e fração excedente", async () => {
       const columns = { vendas_externas: ["subtotal", "descontos_itens", "desconto_venda", "total", "valor_recebido", "valor_estornado"],
@@ -153,7 +157,9 @@ it("migração e repositórios no PostgreSQL local descartável", { skip: localU
         await database.query(`UPDATE baixas_estoque SET ${quote(column)}=$1 WHERE id=$2`, [original, baixaId]);
       }
       await repository.cancel(auth, saleId);
-      assert.deepEqual((await repository.summary(auth, "2026-11")).diario, []);
+      const summary = await repository.summary(auth, "2026-11");
+      assert.deepEqual(summary.diario, []); assert.deepEqual(summary.gestao?.porMoeda, []); assert.deepEqual(summary.gestao?.produtosMaisVendidos, []);
+      assert.equal(summary.gestao?.vendasComPendencia, 0);
       const event = { tipo: "recebimento" as const, valor: "1.00", formaPagamento: "Pix", ocorridoEm: "2026-11-10T12:00:00.000Z" };
       await assert.rejects(repository.financial(auth, saleId, randomUUID(), event), { status: 400 });
       await repository.financial(auth, saleId, randomUUID(), { ...event, tipo: "estorno", valor: "50.00" });

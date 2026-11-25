@@ -13,6 +13,17 @@ export type Item = {
 
 export type Filtro = "todos" | "ruptura" | "estoque";
 export type InventoryPage = { items: Item[]; page: number; nextPage: number | null };
+export type InventoryProduct = { produtoId: string; variantes: Item[] };
+
+export function agruparProdutos(items: Item[]): InventoryProduct[] {
+  const products = new Map<string, InventoryProduct>();
+  for (const item of items) {
+    const product = products.get(item.produtoId);
+    if (product) product.variantes.push(item);
+    else products.set(item.produtoId, { produtoId: item.produtoId, variantes: [item] });
+  }
+  return [...products.values()];
+}
 
 export function isItem(value: unknown): value is Item {
   if (typeof value !== "object" || value === null) return false;

@@ -2,6 +2,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import styles from "../login/login.module.css";
+import { userMessage } from "../components/presentation";
 
 export default function ActivatePage() {
   const secret = useRef("");
@@ -34,7 +35,7 @@ export default function ActivatePage() {
     finally { submitting.current = false; setBusy(false); }
   }
   return <div className={styles.container}>
-    <div className={styles.header}><h1 className={styles.title}>Ativar conta</h1><p className={styles.subtitle}>Acesso administrativo por convite</p></div>
+    <div className={styles.header}><h1 className={styles.title}>Ativar conta</h1></div>
     {done ? <p className={styles.success} role="status">Conta criada. <Link href="/login">Entrar no PORTERO</Link></p> : <form method="post" action="/api/auth/invitations/activate" className={`${styles.card} ${styles.form}`} onSubmit={activate} aria-busy={busy}>
       <label className={styles.field}>E-mail autorizado<input type="email" value={email} readOnly /></label>
       <label className={styles.field}>Nome<input value={nome} onChange={event => setNome(event.target.value)} required maxLength={100} autoComplete="name" /></label>
@@ -44,7 +45,7 @@ export default function ActivatePage() {
       <button type="submit" className={styles.button} disabled={busy || !email}>{busy ? "Verificando..." : "Criar conta"}</button>
       <noscript>JavaScript é necessário para ativar a conta com segurança.</noscript>
     </form>}
-    {error && <p className={styles.error} role="alert">{error}</p>}
-    <p className={styles.help}>Se a resposta da criação se perder, tente <Link href="/login">entrar</Link> antes de solicitar outro convite.</p>
+    {error && <p className={styles.error} role="alert">{userMessage(error, "Não foi possível confirmar a conta. Tente entrar antes de pedir outro convite.")}</p>}
+    {!done && !busy && error && <p className={styles.help}>Já criou sua senha? <Link href="/login">Tente entrar</Link>.</p>}
   </div>;
 }

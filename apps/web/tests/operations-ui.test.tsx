@@ -111,7 +111,7 @@ it("limite persistido afeta filtros e atualização periódica só consulta com 
   };
   const view = await mount(<Inventory />);
   try {
-    await act(settle); assert.match(view.container.textContent!, /Limite de ruptura: 3/); await view.click("Ruptura"); assert.match(view.container.textContent!, /Luva/);
+    await act(settle); assert.match(view.container.textContent!, /Estoque baixo: saldo até 3/); await view.click("Ruptura"); assert.match(view.container.textContent!, /Luva/);
     assert.ok(refresh); await act(async () => { refresh!(); await settle(); }); assert.equal(reads, 2);
     Object.defineProperty(browser.document, "visibilityState", { configurable: true, value: "hidden" }); refresh!(); assert.equal(reads, 2);
   } finally { await view.close(); browser.setInterval = nativeInterval; browser.clearInterval = nativeClear; Object.defineProperty(browser.document, "visibilityState", { configurable: true, value: "visible" }); }
@@ -120,11 +120,13 @@ it("paginação limita a exibição, mas busca encontra variantes de todo o cat�
   globalThis.fetch = async url => {
     if (url === "/api/auth/session") return Response.json({ ...session, configuracoesHabilitadas: false });
     assert.equal(url, "/api/inventory?page=1");
-    return Response.json({ page: 1, nextPage: null, items: Array.from({ length: 61 }, (_, index) => ({ id: `100:${index + 101}`, produtoId: "100", varianteId: String(index + 101), nome: `Produto ${index + 1}`, variante: "Azul", sku: `SKU-${index + 1}`, preco: 10, quantidade: 5, ruptura: false })) });
+    return Response.json({ page: 1, nextPage: null, items: Array.from({ length: 61 }, (_, index) => ({ id: `${index + 100}:${index + 101}`, produtoId: String(index + 100), varianteId: String(index + 101), nome: `Produto ${index + 1}`, variante: "Azul", sku: `SKU-${index + 1}`, preco: 10, quantidade: 5, ruptura: false })) });
   };
   const view = await mount(<Inventory />);
   try {
-    assert.match(view.container.textContent!, /Página 1 de 3/); assert.doesNotMatch(view.container.textContent!, /Produto 61/);
+    assert.match(view.container.textContent!, /Página 1 de 3/);
+    assert.equal(view.container.querySelectorAll("article[data-product-id]").length, 30);
+    assert.equal(view.container.querySelector('article[data-product-id="160"]'), null);
     await view.click("Próxima"); assert.match(view.container.textContent!, /Página 2 de 3/);
     const search = view.container.querySelector<HTMLInputElement>('input[type="search"]') ?? view.container.querySelector<HTMLInputElement>('input[placeholder]'); assert.ok(search);
     await act(async () => { Object.getOwnPropertyDescriptor(browser.HTMLInputElement.prototype, "value")!.set!.call(search, "SKU-61"); search.dispatchEvent(new Event("input", { bubbles: true })); await settle(); });

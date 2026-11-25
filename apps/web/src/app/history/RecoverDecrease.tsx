@@ -2,6 +2,7 @@
 import { useRef, useState } from "react";
 import { comTravaDaBaixa, consultarBaixa, enviarBaixa, guardarBaixa, limparBaixa } from "../inventory/stock-decrease";
 import type { StockHistoryItem } from "./data";
+import { userMessage } from "../components/presentation";
 export default function RecoverDecrease({ item, onChange }: { item: StockHistoryItem; onChange: () => void }) {
   const [opened, setOpened] = useState(false), [busy, setBusy] = useState(false), [message, setMessage] = useState("");
   const submitting = useRef(false);
@@ -39,10 +40,10 @@ export default function RecoverDecrease({ item, onChange }: { item: StockHistory
   }
   return <div>
     {!opened ? <button type="button" onClick={() => setOpened(true)}>Recuperar operação #{item.id}</button> : <>
-      <p>Registro #{item.id}: variante {item.varianteId}, quantidade {item.quantidade}. Confirme que corresponde à sua venda.</p>
+      <p>Registro #{item.id}: {item.sku || "Sem SKU"}, quantidade {item.quantidade}. Confirme que é a baixa que você procura.</p>
       <button type="button" disabled={busy} onClick={() => void act(false)}>{busy ? "Aguarde..." : "Executar este registro"}</button>{" "}
       <button type="button" disabled={busy} onClick={() => void act(true)}>Cancelar registro sem executar</button>
     </>}
-    {message && <p role="status">{message}</p>}
+    {message && <p role="status">{userMessage(message)}</p>}
   </div>;
 }

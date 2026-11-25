@@ -12,7 +12,8 @@ it("totais online mantêm moedas separadas, deduplicam identidade composta e exc
   assert.equal(onlineTotals([{ ...order, storeId: "999" }, order])[0].pedidos, 2);
 });
 it("formatação não perde centavos acima do inteiro seguro e aceita recebido líquido negativo", () => {
-  assert.equal(formatMoney("9999999999999999.99", "BRL"), "BRL 9.999.999.999.999.999,99");
+  assert.equal(formatMoney("9999999999999999.99", "BRL"), "R$ 9.999.999.999.999.999,99");
+  assert.equal(formatMoney("-10.05", "BRL"), "-R$ 10,05");
   assert.equal(formatMoney("-10.05", "USD"), "USD -10,05");
 });
 it("criação envia somente o registro local e mantém a chave recebida, sem credencial remota", async () => {

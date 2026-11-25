@@ -14,7 +14,9 @@ it("conta todas as páginas e separa estoque negativo e não controlado", async 
       items: [{ ...item, id: "200:3", produtoId: "200", varianteId: "3", quantidade: -1, ruptura: true }] });
     return Response.json({ page: 1, hasMore: false, items: [] });
   });
-  assert.deepEqual(result, { produtos: 2, variantes: 3, semEstoque: 2, emRuptura: 2, semControle: 1, negativas: 1, recentes: [] });
+  const { catalogo, ...counts } = result;
+  assert.deepEqual(counts, { produtos: 2, produtosBaixos: 2, variantes: 3, semEstoque: 2, emRuptura: 2, semControle: 1, negativas: 1, recentes: [] });
+  assert.equal(catalogo.length, 3);
   assert.equal(calls.length, 3); assert.ok(!calls.some(url => /dashboard|orders|sales/.test(url)));
 });
 it("mantém status das cinco baixas recentes e não inventa indicadores se a API falhar", async () => {

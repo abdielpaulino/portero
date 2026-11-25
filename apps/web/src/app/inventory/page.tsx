@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import TabBar from "../components/TabBar";
 import styles from "./inventory.module.css";
-import { carregarCatalogo, filtrarItens, quantidadeLabel, precoLabel, type Item, type Filtro } from "./data";
-import StockDecrease from "./StockDecrease";
+import { carregarCatalogo, filtrarItens, agruparProdutos, type Item, type Filtro } from "./data";
+import ProductStockCard from "./ProductStockCard";
 import { carregarSessao } from "../auth/session";
 import { usePreferences } from "../settings/usePreferences";
+import { countLabel, userMessage } from "../components/presentation";
 
 export default function InventoryPage() {
   const [items, setItems] = useState<Item[]>([]);
@@ -87,20 +87,20 @@ export default function InventoryPage() {
     return () => window.clearInterval(timer);
   }, [preferences, loading, baixasEmAndamento, atualizarConsulta]);
   const itensFiltrados = filtrarItens(items.map(item => ({ ...item, ruptura: item.quantidade !== null && item.quantidade <= (preferences?.limiteRuptura ?? 0) })), busca, filtro);
-  const pageCount = Math.max(1, Math.ceil(itensFiltrados.length / 30)), currentPage = Math.min(page, pageCount);
-  const visibleItems = itensFiltrados.slice((currentPage - 1) * 30, currentPage * 30);
+  const produtosFiltrados = agruparProdutos(itensFiltrados);
+  const pageCount = Math.max(1, Math.ceil(produtosFiltrados.length / 30)), currentPage = Math.min(page, pageCount);
+  const visibleProducts = produtosFiltrados.slice((currentPage - 1) * 30, currentPage * 30);
 
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <h1 className={styles.title}>Inventário</h1>
         <p className={styles.subtitle}>Produtos e variantes da loja</p>
-        {preferences && <p>Limite de ruptura: {preferences.limiteRuptura}. Atualização da tela: {preferences.atualizacaoAutomatica ? `${preferences.intervaloSegundos}s` : "manual"}.</p>}
-        {preferencesError && <p role="alert">{preferencesError}</p>}
-        <div className={styles.actions}><Link href="/history">Histórico de baixas</Link>
-        <Link href="/sales">{vendasHabilitadas ? "Registrar venda externa" : "Vendas externas"}</Link></div>
-        <p>Dar baixa registra somente estoque. Use a venda externa para registrar canal, valores e pagamento.</p>
-        {vendasHabilitadas === false && <p>Registro de vendas externas ainda não habilitado nesta instalação. Consulte a disponibilidade em Vendas.</p>}
+        {preferencesError && <p role="alert">{userMessage(preferencesError)}</p>}
+        <div className={styles.actions}><Link href="/history">Histórico de baixas</Link></div>
+        <p>Baixa simples: somente estoque. Para valores e pagamento, use Vendas.</p>
+        {preferences && <p>Estoque baixo: saldo até {preferences.limiteRuptura}.</p>}
+        {vendasHabilitadas === false && <p>Vendas externas indisponíveis no momento.</p>}
         <button type="button" className={styles.filterPill} disabled={loading || baixasEmAndamento > 0}
           onClick={atualizarConsulta}>Atualizar estoque</button>
       </div>
@@ -126,7 +126,7 @@ export default function InventoryPage() {
           className={styles.searchInput}
           placeholder="Itens, variantes, SKUs..."
           value={busca}
-          disabled={loading}
+          disabled={loading || baixasEmAndamento > 0}
           onChange={(e) => { setBusca(e.target.value); setPage(1); }}
         />
       </div>
@@ -136,7 +136,7 @@ export default function InventoryPage() {
           type="button"
           className={styles.filterPill}
           data-active={filtro === "todos"}
-          disabled={loading}
+          disabled={loading || baixasEmAndamento > 0}
           onClick={() => { setFiltro("todos"); setPage(1); }}
         >
           Todos
@@ -145,7 +145,7 @@ export default function InventoryPage() {
           type="button"
           className={styles.filterPill}
           data-active={filtro === "ruptura"}
-          disabled={loading}
+          disabled={loading || baixasEmAndamento > 0}
           onClick={() => { setFiltro("ruptura"); setPage(1); }}
         >
           Ruptura
@@ -154,7 +154,7 @@ export default function InventoryPage() {
           type="button"
           className={styles.filterPill}
           data-active={filtro === "estoque"}
-          disabled={loading}
+          disabled={loading || baixasEmAndamento > 0}
           onClick={() => { setFiltro("estoque"); setPage(1); }}
         >
           Com estoque
@@ -167,7 +167,7 @@ export default function InventoryPage() {
         {loading && <p className={styles.hint} role="status">Consultando todas as páginas do catálogo...</p>}
         {erro && (
           <div className={styles.empty} role="alert">
-            <p>{erro}</p>
+            <p>{userMessage(erro, "Não foi possível carregar o inventário.")}</p>
             <Link href="/login">Entrar novamente</Link>{" "}
             <button type="button" className={styles.filterPill} disabled={loading || baixasEmAndamento > 0}
               onClick={atualizarConsulta}>Tentar novamente</button>
@@ -182,68 +182,14 @@ export default function InventoryPage() {
           <p className={styles.empty}>Nenhum item encontrado.</p>
         )}
 
-        {visibleItems.map((item) => (
-            <div
-              key={item.id}
-              className={styles.card}
-            >
-              <div className={styles.thumb}>
-                {item.imagemUrl ? (
-                  <Link href={`/productDetails/${item.produtoId}?varianteId=${item.varianteId}`} aria-label={`Ver detalhes de ${item.nome}, variante ${item.variante}`}><Image
-                    src={item.imagemUrl}
-                    alt={item.nome}
-                    className={styles.thumbImg}
-                    width={48}
-                    height={48}
-                    unoptimized
-                  /></Link>
-                ) : (
-                  <svg
-                    width="20"
-                    height="20"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <rect x="3" y="3" width="18" height="18" rx="2" />
-                    <circle cx="8.5" cy="8.5" r="1.5" />
-                    <path d="M21 15l-5-5L5 21" />
-                  </svg>
-                )}
-              </div>
+        {visibleProducts.map(product => <ProductStockCard key={`${product.produtoId}:${busca}:${filtro}`}
+          product={product} disabled={loading || !!erro} stockEnabled={baixasHabilitadas}
+          onSuccess={atualizarSaldo} onBusyChange={acompanharBaixa} />)}
 
-              <div className={styles.info}>
-                <Link className={styles.itemName} href={`/productDetails/${item.produtoId}?varianteId=${item.varianteId}`}>{item.nome}</Link>
-                <span className={styles.sku}>Variante: {item.variante}</span>
-                <div className={styles.itemMeta}>
-                  <span className={styles.sku}>SKU: {item.sku || "—"}</span>
-                  <span
-                    className={styles.qtyBadge}
-                    data-ruptura={item.ruptura}
-                  >
-                    {quantidadeLabel(item)}
-                  </span>
-                  <span className={styles.status} data-ruptura={item.ruptura}>
-                    {item.ruptura ? "Alerta Ruptura" : "Normal"}
-                  </span>
-                  {item.quantidade !== null && item.quantidade < 0 && <span role="alert">Estoque negativo — conferir.</span>}
-                </div>
-                <StockDecrease item={item} className={styles.stockAction} disabled={loading || !!erro || !baixasHabilitadas}
-                  onSuccess={() => atualizarSaldo(item)} onBusyChange={acompanharBaixa} />
-              </div>
-
-              <span className={styles.price}>
-                {precoLabel(item)}
-              </span>
-            </div>
-          ))}
       </div>
 
       {!loading && !erro && itensFiltrados.length > 0 && <nav className={styles.pagination} aria-label="Páginas do catálogo">
-        <p>Página {currentPage} de {pageCount} · {itensFiltrados.length} variantes encontradas no catálogo consultado</p>
+        <p>Página {currentPage} de {pageCount} · {countLabel(produtosFiltrados.length, "produto")} · {countLabel(itensFiltrados.length, "variante")}</p>
         <button type="button" className={styles.filterPill} disabled={currentPage <= 1 || baixasEmAndamento > 0} onClick={() => setPage(currentPage - 1)}>Anterior</button>
         <button type="button" className={styles.filterPill} disabled={currentPage >= pageCount || baixasEmAndamento > 0} onClick={() => setPage(currentPage + 1)}>Próxima</button>
       </nav>}

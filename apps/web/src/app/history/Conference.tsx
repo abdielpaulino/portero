@@ -3,6 +3,7 @@ import { useRef, useState } from "react";
 import type { Session } from "../auth/session";
 import type { StockHistoryItem } from "./data";
 import { usePending, savePending, clearPending } from "../sales/pending";
+import { userMessage } from "../components/presentation";
 
 type Review = { id: number; conclusao: string; quantidadeComprovada: number | null; evidenciaReferencia: string; justificativa: string; responsavel: string; criadoEm: string };
 export default function Conference({ item, session, onChange }: { item: StockHistoryItem; session: Session; onChange: () => void }) {
@@ -36,10 +37,10 @@ export default function Conference({ item, session, onChange }: { item: StockHis
   return <div>
     <button type="button" disabled={busy} onClick={() => void load()}>Conferências da baixa</button>
     {open && <><p>Até 50 registros recentes. Esta conferência não envia baixa nem repõe estoque.</p>
-      {reviews.map(review => <section key={review.id}><strong>{review.conclusao} · quantidade comprovada: {review.quantidadeComprovada ?? "indeterminada"}</strong>
+      {reviews.map(review => <section key={review.id}><strong>{({ integral: "Aplicação integral", parcial: "Aplicação parcial", nao_aplicada: "Não aplicada", inconclusiva: "Inconclusiva" } as Record<string, string>)[review.conclusao] ?? "A conferir"} · quantidade comprovada: {review.quantidadeComprovada ?? "indeterminada"}</strong>
         <p>{review.evidenciaReferencia}: {review.justificativa}</p><small>{review.responsavel} · {new Date(review.criadoEm).toLocaleString("pt-BR")}</small></section>)}
       {(eligible || pending) && <form method="post" onSubmit={submit}>
-        {pending && <p role="status">Há uma conferência sem resposta confirmada. Reenviar mantém a mesma chave e os mesmos dados.</p>}
+        {pending && <p role="alert">Há uma conferência sem confirmação. Recupere este registro antes de começar outro.</p>}
         <fieldset disabled={busy || !!pending}><legend>Registrar conferência administrativa</legend>
           <label>Conclusão<select value={conclusion} onChange={event => setConclusion(event.target.value)}><option value="inconclusiva">Inconclusiva — manter bloqueio</option><option value="integral">Aplicação integral comprovada</option><option value="nao_aplicada">Não aplicação comprovada</option><option value="parcial">Aplicação parcial comprovada</option></select></label>
           {conclusion !== "inconclusiva" && <label>Quantidade comprovada<input type="number" min={0} max={item.quantidade} required value={quantity} onChange={event => setQuantity(event.target.value)} /></label>}
@@ -48,9 +49,9 @@ export default function Conference({ item, session, onChange }: { item: StockHis
           <label>Justificativa<textarea required minLength={20} maxLength={2000} value={reason} onChange={event => setReason(event.target.value)} /></label>
           <label><input type="checkbox" required checked={confirmed} onChange={event => setConfirmed(event.target.checked)} />Conferi a evidência documental; não usei somente o saldo atual.</label>
         </fieldset>
-        <p>Não inclua senhas, tokens ou dados de consumidores. A conferência é registrada com seu usuário. Aplicação parcial não envia o restante automaticamente.</p>
+        <p>Não inclua credenciais ou dados de clientes. Quantidades restantes não são baixadas automaticamente.</p>
         <button type="submit" disabled={busy}>{busy ? "Registrando..." : pending ? "Recuperar a mesma conferência" : "Registrar conferência"}</button>
       </form>}</>}
-    {error && <p role="alert">{error}</p>}
+    {error && <p role="alert">{userMessage(error)}</p>}
   </div>;
 }

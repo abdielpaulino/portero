@@ -1,10 +1,26 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { carregarCatalogo, carregarInventario, filtrarItens, precoLabel, quantidadeLabel, type Item } from "../src/app/inventory/data";
+import { agruparProdutos, carregarCatalogo, carregarInventario, filtrarItens, precoLabel, quantidadeLabel, type Item } from "../src/app/inventory/data";
 import nextConfig from "../next.config";
 
 const item: Item = { id: "100:101", produtoId: "100", varianteId: "101", nome: "Luva Portero",
   variante: "9 / Azul", sku: "LUVA-9", preco: 129.9, quantidade: 3, ruptura: false };
+
+it("agrupa variantes pelo ID do produto, preservando produtos de mesmo nome e os saldos individuais", () => {
+  const variant = { ...item, id: "100:102", varianteId: "102", variante: "10", quantidade: 7 };
+  const sameName = { ...item, id: "200:201", produtoId: "200", varianteId: "201" };
+  assert.deepEqual(agruparProdutos([item, sameName, variant]), [
+    { produtoId: "100", variantes: [item, variant] }, { produtoId: "200", variantes: [sameName] },
+  ]);
+  assert.deepEqual(agruparProdutos([]), []);
+});
+
+it("busca de variante por nome ou SKU mantém o produto e somente as variantes correspondentes", () => {
+  const variant = { ...item, id: "100:102", varianteId: "102", variante: "10 / Vermelha", sku: "LUVA-10" };
+  for (const query of ["vermelha", "luva-10"]) {
+    assert.deepEqual(agruparProdutos(filtrarItens([item, variant], query, "todos")), [{ produtoId: "100", variantes: [variant] }]);
+  }
+});
 
 it("carrega uma página pelo proxy com cookie de sessão, sem credenciais da Nuvemshop", async () => {
   const controller = new AbortController();

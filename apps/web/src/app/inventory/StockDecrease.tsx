@@ -1,33 +1,43 @@
 "use client";
-import { useId, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { userMessage } from "../components/presentation";
 import type { Item } from "./data";
 import { comTravaDaBaixa, criarBaixa, enviarBaixa, guardarBaixa, lerBaixaPendente, limparBaixa,
   quantidadeValida, registrarBaixa, type DecreaseResult, type PendingDecrease } from "./stock-decrease";
 
-type Props = { item: Item; className?: string; disabled?: boolean; onSuccess: () => void; onBusyChange: (busy: boolean) => void };
-export default function StockDecrease({ item, className, disabled, onSuccess, onBusyChange }: Props) {
+type Props = { item: Item; className?: string; disabled?: boolean; expanded?: boolean; onSuccess: () => void; onBusyChange: (busy: boolean) => void };
+export default function StockDecrease({ item, className, disabled, expanded = false, onSuccess, onBusyChange }: Props) {
   const inputId = useId();
-  const [opened, setOpened] = useState(false), [quantidade, setQuantidade] = useState("1");
+  const [opened, setOpened] = useState(expanded), [quantidade, setQuantidade] = useState("1");
   const [operation, setOperation] = useState<PendingDecrease | null>(null);
   const [sending, setSending] = useState(false), [error, setError] = useState("");
   const [result, setResult] = useState<DecreaseResult | null>(null);
   const submitting = useRef(false);
-  async function open() {
+  const initialized = useRef(false);
+  const { produtoId, varianteId } = item;
+  const open = useCallback(async () => {
     if (submitting.current) return;
     submitting.current = true;
     try {
-      await comTravaDaBaixa(item, async () => {
-        const pending = lerBaixaPendente(item);
+      const identity = { produtoId, varianteId };
+      await comTravaDaBaixa(identity, async () => {
+        const pending = lerBaixaPendente(identity);
         setOperation(pending); setQuantidade(pending ? String(pending.quantidade) : "1");
         setResult(pending ? { kind: "pending", message: pending.baixaId === null
           ? "Criação sem ID confirmado. Recupere o registro pelo histórico."
           : `Operação #${pending.baixaId} pendente. Verifique esta mesma operação.` } : null);
         setError(""); setOpened(true);
       });
-    } catch (error) { setError(error instanceof Error ? error.message : "Consulte o histórico antes de continuar."); }
+    } catch (error) { setOpened(false); setError(error instanceof Error ? error.message : "Consulte o histórico antes de continuar."); }
     finally { submitting.current = false; }
-  }
+  }, [produtoId, varianteId]);
+  useEffect(() => {
+    if (expanded && !disabled && !initialized.current) {
+      initialized.current = true;
+      void open();
+    }
+  }, [expanded, disabled, open]);
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting.current || disabled || result?.kind === "success" || result?.kind === "rejected") return;
@@ -73,13 +83,13 @@ export default function StockDecrease({ item, className, disabled, onSuccess, on
           onChange={event => setQuantidade(event.target.value)} disabled={sending || disabled} readOnly={operation !== null} />
         {!operation && <p>Confirmar a baixa desta quantidade na variante {item.variante}?</p>}</>}
       {operation?.baixaId && <p>Operação #{operation.baixaId}</p>}
-      {result && <p role={result.kind === "success" ? "status" : "alert"}>{result.message}</p>}
+      {result && <p role={result.kind === "success" ? "status" : "alert"}>{userMessage(result.message)}</p>}
       <div>{result?.kind === "rejected" ? <button type="button" onClick={() => void correctQuantity()} disabled={sending || disabled}>Corrigir quantidade</button>
         : result?.kind !== "success" && <button type="submit" disabled={sending || disabled || operation?.baixaId === null}>
           {sending ? "Registrando..." : operation ? "Verificar operação" : "Confirmar baixa"}</button>}
-        <button type="button" disabled={sending} onClick={() => setOpened(false)}>{operation ? "Fechar" : "Cancelar"}</button></div>
+        <button type="button" disabled={sending} onClick={() => setOpened(false)}>Fechar</button></div>
     </form>}
-    {error && <p role="alert">{error}</p>}
+    {error && <p role="alert">{userMessage(error)}</p>}
     {(operation || error) && <Link href="/history">Recuperar pelo histórico</Link>}
   </div>;
 }

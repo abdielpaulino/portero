@@ -9,6 +9,7 @@ import { carregarHistorico, statusLabel, type StockHistoryItem } from "./data";
 import RecoverDecrease from "./RecoverDecrease";
 import Conference from "./Conference";
 import { carregarSessao, type Session } from "../auth/session";
+import { userMessage } from "../components/presentation";
 
 export default function HistoryPage() {
   const [items, setItems] = useState<StockHistoryItem[]>([]);
@@ -51,20 +52,19 @@ export default function HistoryPage() {
   return <div className={styles.container}>
     <div className={styles.header}>
       <h1 className={styles.title}>Histórico de baixas</h1>
-      <p className={styles.subtitle}>Movimentações de estoque; baixas antigas não comprovam vendas pagas.</p>
-      <div className={styles.actions}><Link href="/inventory">Voltar ao inventário</Link>
-      <Link href="/sales">Vendas externas e histórico financeiro</Link></div>
+      <p className={styles.subtitle}>Movimentações de estoque</p>
+      <div className={styles.actions}><Link href="/inventory">Voltar ao inventário</Link></div>
     </div>
     <div className={styles.list} aria-busy={loading}>
       <button type="button" className={styles.filterPill} disabled={loading} onClick={() => void carregar(1)}>Atualizar histórico</button>
       {loading && <p role="status">Carregando histórico...</p>}
-      {erro && <div role="alert"><p>{erro}</p><Link href="/login">Entrar novamente</Link>{" "}
+      {erro && <div role="alert"><p>{userMessage(erro)}</p><Link href="/login">Entrar novamente</Link>{" "}
         <button type="button" className={styles.filterPill} disabled={loading} onClick={() => void carregar(failedPage)}>Tentar novamente</button></div>}
       {!loading && !erro && !items.length && <p className={styles.empty}>Nenhuma baixa registrada.</p>}
       {items.map((item) => <article key={item.id} className={historyStyles.card}>
         <div className={historyStyles.cardHeader}><strong>Baixa #{item.id}</strong><span className={historyStyles.badge} data-status={item.status}>{statusLabel(item.status)}</span></div>
-        <p>Variante {item.varianteId} · SKU: {item.sku || "—"}</p>
-        <p>Produto {item.produtoId} · Quantidade: {item.quantidade}</p>
+        <p>SKU: {item.sku || "Não informado"} · Quantidade: {item.quantidade}</p>
+        <Link href={`/productDetails/${item.produtoId}?varianteId=${item.varianteId}`}>Ver produto</Link>
         <p>Usuário: {item.usuario?.nome || item.usuario?.email || "Não disponível"}</p>
         <small>Registro: {item.criadoEm ? new Date(item.criadoEm).toLocaleString("pt-BR") : "Data não disponível"}</small>
         {item.status === "registrada" && <RecoverDecrease item={item} onChange={() => void carregar(1)} />}
