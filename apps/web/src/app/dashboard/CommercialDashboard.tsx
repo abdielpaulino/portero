@@ -2,86 +2,102 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { carregarSessao, type Session } from "../auth/session";
-import { fetchOrders, fetchSummary, formatMoney, monthNow, onlineTotals, type OnlineOrder, type Summary } from "../sales/data";
-import styles from "./dashboard.module.css";
+import { fetchOrders, fetchSummary, formatMoney, monthNow, type OnlineOrder, type DashboardSummary } from "../sales/data";
+import { countLabel, paymentLabel } from "../components/presentation";
+import type { DashboardData } from "./data";
 import DailyCommercialChart from "./DailyCommercialChart";
+import ManagementCharts from "./ManagementCharts";
+import { dashboardFigures, formatUnits, periodLabel } from "./management";
+import styles from "./dashboard.module.css";
 
-export default function CommercialDashboard({ revision = 0 }: { revision?: number }) {
-  const [session, setSession] = useState<Session | null>(null), [period, setPeriod] = useState(monthNow);
-  const [external, setExternal] = useState<Summary | null>(null), [orders, setOrders] = useState<OnlineOrder[]>([]);
+type Props = { revision?: number; inventory?: DashboardData | null; stockLoading?: boolean; stockError?: string; limit?: number };
+export default function CommercialDashboard({ revision = 0, inventory, stockLoading = false, stockError = "", limit = 0 }: Props) {
+  const [session, setSession] = useState<Session | null>(null), [checked, setChecked] = useState(false);
+  const [period, setPeriod] = useState(monthNow), [currency, setCurrency] = useState("BRL");
+  const [external, setExternal] = useState<DashboardSummary | null>(null), [orders, setOrders] = useState<OnlineOrder[]>([]);
   const [externalError, setExternalError] = useState(""), [onlineError, setOnlineError] = useState("");
   const [page, setPage] = useState(0), [more, setMore] = useState(false), [busy, setBusy] = useState(false);
   const generation = useRef(0);
   useEffect(() => {
     const controller = new AbortController();
-    void carregarSessao(undefined, { signal: controller.signal }).then(value => { if (!controller.signal.aborted) setSession(value); })
-      .catch(() => { if (!controller.signal.aborted) setExternalError("Não foi possível verificar a disponibilidade dos indicadores comerciais."); });
+    void carregarSessao(undefined, { signal: controller.signal }).then(value => { if (!controller.signal.aborted) { setSession(value); setChecked(true); } })
+      .catch(() => { if (!controller.signal.aborted) { setExternalError("Não foi possível carregar o resumo de vendas."); setChecked(true); } });
     return () => controller.abort();
   }, []);
   useEffect(() => {
-    const controller = new AbortController();
-    const current = ++generation.current;
-    if (session?.vendasExternasHabilitadas) void fetchSummary(period, controller.signal).then(value => { if (!controller.signal.aborted) { setExternal(value); setExternalError(""); } })
-      .catch((error: unknown) => { if (!controller.signal.aborted) { setExternal(null); setExternalError(error instanceof Error ? error.message : "Resumo externo indisponível."); } });
+    const controller = new AbortController(), current = ++generation.current;
+    if (session?.vendasExternasHabilitadas) void fetchSummary(period, controller.signal).then(value => {
+      if (!controller.signal.aborted && current === generation.current) { setExternal(value); setExternalError(""); }
+    }).catch(() => { if (!controller.signal.aborted && current === generation.current) { setExternal(null); setExternalError("Vendas externas ainda não disponíveis."); } });
     if (session?.pedidosOnlineHabilitados) void fetchOrders(period, 1, controller.signal).then(value => {
       if (!controller.signal.aborted && current === generation.current) { setOrders(value.items); setPage(1); setMore(value.hasMore); setOnlineError(""); setBusy(false); }
-    }).catch((error: unknown) => { if (!controller.signal.aborted && current === generation.current) { setOrders([]); setPage(0); setMore(false); setBusy(false); setOnlineError(error instanceof Error ? error.message : "Pedidos indisponíveis."); } });
+    }).catch(() => { if (!controller.signal.aborted && current === generation.current) { setOrders([]); setPage(0); setMore(false); setBusy(false); setOnlineError("Pedidos online ainda não disponíveis."); } });
     return () => controller.abort();
   }, [session, period, revision]);
+  function changePeriod(value: string) {
+    if (!/^(?!0000)\d{4}-(0[1-9]|1[0-2])$/.test(value) || busy) return;
+    setExternal(null); setOrders([]); setPage(0); setMore(false); setExternalError(""); setOnlineError(""); setPeriod(value);
+  }
   async function next() {
-    if (busy) return; setBusy(true); setOnlineError("");
-    const current = generation.current;
+    if (busy) return; setBusy(true); setOnlineError(""); const current = generation.current;
     try {
       const result = await fetchOrders(period, page + 1);
       if (current !== generation.current) return;
-      setOrders(current => [...new Map([...current, ...result.items].map(order => [`${order.storeId}:${order.id}`, order])).values()]);
+      setOrders(previous => [...new Map([...previous, ...result.items].map(order => [`${order.storeId}:${order.id}`, order])).values()]);
       setPage(result.page); setMore(result.hasMore);
-    } catch (error) { if (current === generation.current) setOnlineError(error instanceof Error ? error.message : "Consulta interrompida; totais continuam parciais."); }
+    } catch { if (current === generation.current) setOnlineError("Não foi possível carregar mais pedidos. Dados incompletos."); }
     finally { if (current === generation.current) setBusy(false); }
   }
-  if (!session?.vendasExternasHabilitadas && !session?.pedidosOnlineHabilitados) return externalError ? <p role="alert">{externalError}</p> : null;
-  return <section className={styles.card}>
-    <h2 className={styles.cardLabel}>Vendas e pedidos por origem</h2>
-    <label>Período <input type="month" value={period} disabled={busy} onChange={event => {
-      setExternal(null); setOrders([]); setPage(0); setMore(false); setExternalError(""); setOnlineError(""); setPeriod(event.target.value);
-    }} /></label>
-    <p className={styles.cardHint}>Valores sem frete e por moeda. Valor vendido e valor dos pedidos não representam dinheiro recebido.</p>
-    <DailyCommercialChart period={period} external={external} orders={orders} onlineLoaded={page > 0} onlinePartial={more || !!onlineError}
-      externalEnabled={!!session.vendasExternasHabilitadas} onlineEnabled={!!session.pedidosOnlineHabilitados} page={page} />
-    {session.vendasExternasHabilitadas && <div className={styles.commercialSection}>
-      <h3>Vendas externas — PORTERO</h3><Link href="/sales">Registrar venda e consultar histórico comercial</Link>
-      {externalError && <p role="alert">{externalError}</p>}
-      {!external && !externalError && <p role="status">Carregando registros externos...</p>}
-      {external && <>
-        <p>Todos os registros locais do período {external.periodo}. Vendas confirmadas pela data da venda; recebimentos e estornos pela data do movimento.</p>
-        {!external.totais.length && <p>Nenhum registro financeiro para este período.</p>}
-        {external.totais.map(row => <div className={styles.orderRow} key={`${row.moeda}:${row.canal}`}>
-          <div className={styles.orderInfo}><strong>{row.canal} · {row.moeda}</strong>
-            <p>{row.vendas} venda(s) confirmada(s) · {row.pagamentosPendentes} com saldo a receber</p>
-            <p>Valor vendido: {formatMoney(row.valorVendido, row.moeda)}</p>
-            <p>Recebimentos informados: {formatMoney(row.recebimentos, row.moeda)} · estornos: {formatMoney(row.estornos, row.moeda)}</p>
-            <p>Recebido líquido no mês: {formatMoney(row.recebidoLiquido, row.moeda)}</p>
-          </div></div>)}
-        <p>{external.estoque.pendentes} item(ns) com estoque pendente ou parcial; {external.estoque.incertas} exigem conferência.</p>
-      </>}
-    </div>}
-    {session.pedidosOnlineHabilitados && <div className={styles.commercialSection}>
-      <h3>Pedidos da loja online — Nuvemshop</h3>
-      <p>Período {period}, pela criação do pedido. Canal: loja online. Esta consulta não altera estoque.</p>
-      {onlineError && <p role="alert">{onlineError}</p>}
-      {!page && !onlineError && <p role="status">Consultando pedidos...</p>}
-      {page > 0 && <>
-        <p>{orders.length} pedido(s) nas páginas 1 a {page}. {more ? "Totais parciais: há outras páginas para consultar." : "Fim da paginação informado pela API."}</p>
-        {onlineTotals(orders).map(row => <div key={row.moeda}>
-          <strong>{row.moeda} · valor dos pedidos: {formatMoney(row.valor, row.moeda)}</strong>
-          <p>{row.pedidos} pedido(s) não cancelados; {row.pendentes} com pagamento pendente/parcial.</p>
-          {row.incompletos > 0 && <p role="alert">{row.incompletos} registro(s) sem dados suficientes: o total monetário é incompleto.</p>}
-        </div>)}
-        <p>Recebido online no mês indisponível: a consulta não comprova recebimentos e estornos datados. Não foi estimado pelo status pago.</p>
-        {orders.map(order => <div className={styles.orderRow} key={`${order.storeId}:${order.id}`}><span>Pedido #{order.numero} · Nuvemshop/loja online · {order.status} · pagamento {order.pagamento}
-          {order.valorProdutos !== null && order.moeda ? ` · ${formatMoney(order.valorProdutos, order.moeda)} sem frete` : " · valor incompleto"}</span></div>)}
-        {more && <button type="button" disabled={busy} onClick={() => void next()}>Consultar mais pedidos</button>}
-      </>}
-    </div>}
-  </section>;
+  if (!session?.vendasExternasHabilitadas && !session?.pedidosOnlineHabilitados && inventory === undefined) return externalError ? <p role="alert">{externalError}</p> : null;
+  const currentExternal = external?.periodo === period ? external : null;
+  const currencies = [...new Set([...(currentExternal?.totais.map(row => row.moeda) ?? []), ...orders.map(row => row.moeda).filter((value): value is string => !!value && /^[A-Z]{3}$/.test(value))])].sort();
+  if (!currencies.length) currencies.push("BRL");
+  const selectedCurrency = currencies.includes(currency) ? currency : currencies[0];
+  const figures = dashboardFigures(currentExternal, orders, page > 0, selectedCurrency, period);
+  const partial = figures.incomplete || more || !!onlineError && page > 0;
+  const loadingSales = !checked || !!session?.vendasExternasHabilitadas && !currentExternal && !externalError || !!session?.pedidosOnlineHabilitados && !page && !onlineError;
+  const money = (value: string | null) => value === null ? loadingSales ? "Carregando..." : "Indisponível" : formatMoney(value, selectedCurrency);
+  const scope = figures.externalValue !== null && figures.onlineValue !== null ? "Vendas externas + pedidos online" : figures.externalValue !== null ? "Somente vendas externas" : figures.onlineValue !== null ? "Somente pedidos online" : "";
+  const attentionCount = currentExternal?.gestao?.vendasComPendencia;
+  const lowProducts = inventory ? [...new Map(inventory.catalogo.filter(row => row.quantidade !== null && row.quantidade <= limit).map(row => [row.produtoId, row])).values()] : [];
+  return <div className={styles.overview}>
+    <section className={styles.filters} aria-label="Período e moeda">
+      <label>Período<input type="month" min="0001-01" value={period} disabled={busy} onChange={event => changePeriod(event.target.value)} /></label>
+      <button type="button" aria-pressed={period === monthNow()} disabled={busy} onClick={() => changePeriod(monthNow())}>Este mês</button>
+      <label>Moeda<select value={selectedCurrency} onChange={event => setCurrency(event.target.value)}>{currencies.map(value => <option key={value}>{value}</option>)}</select></label>
+    </section>
+    <p className={styles.periodTitle}>{periodLabel(period)}</p>
+    {externalError && <p role="alert">{externalError}</p>}
+    {checked && !session?.vendasExternasHabilitadas && <p className={styles.scope}>Vendas externas ainda não disponíveis.</p>}
+    {onlineError && <p role="alert">{onlineError}</p>}
+    {checked && !session?.pedidosOnlineHabilitados && <p className={styles.scope}>Pedidos online ainda não disponíveis.</p>}
+    {partial && <p role="alert">Dados incompletos. {more ? "Há mais pedidos online para carregar." : "Alguns pedidos ficaram fora dos valores."}</p>}
+    {more && <button className={styles.refreshButton} disabled={busy} onClick={() => void next()}>{busy ? "Carregando..." : "Carregar mais pedidos"}</button>}
+    <section className={styles.indicatorGrid} aria-label="Principais indicadores">
+      <article className={styles.statCard}><h2>Valor vendido</h2><strong>{money(figures.sold)}</strong><span>{scope}{partial && " · Parcial"}</span><small>Sem frete · não é valor recebido</small></article>
+      <article className={styles.statCard}><h2>Recebido nas vendas externas</h2><strong>{money(figures.received)}</strong><span>Recebimentos menos estornos no período</span></article>
+      <article className={styles.statCard}><h2>A receber nas vendas externas</h2><strong>{money(figures.outstanding)}</strong><span>Vendas do período · saldo atual</span></article>
+      <article className={styles.statCard}><h2>Vendas e pedidos</h2><strong>{figures.count === null ? loadingSales ? "Carregando..." : "Indisponível" : figures.count.toLocaleString("pt-BR")}</strong>
+        <span>Vendas externas: {figures.externalSales ?? "indisponível"}</span><span>Pedidos online: {figures.onlineOrders ?? "indisponível"}{partial && " · Parcial"}</span></article>
+      <article className={styles.statCard}><h2>Unidades vendidas</h2><strong>{formatUnits(figures.units)}</strong><span>Somente vendas externas</span></article>
+      <article className={styles.statCard}><h2>Produtos com estoque baixo</h2><strong>{stockLoading ? "Carregando..." : inventory ? inventory.produtosBaixos : "Indisponível"}</strong>
+        <span>Estoque atual · inclui esgotados</span>{inventory && <small>{countLabel(inventory.emRuptura, "variante com saldo baixo", "variantes com saldo baixo")}</small>}</article>
+    </section>
+    {stockError && <p role="alert">Estoque ainda não disponível.</p>}
+    <section className={styles.card} aria-label="Vendas no período">
+      <DailyCommercialChart period={period} external={currentExternal} orders={orders} onlineLoaded={page > 0} onlinePartial={partial}
+        externalEnabled={!!session?.vendasExternasHabilitadas} onlineEnabled={!!session?.pedidosOnlineHabilitados} page={page} currency={selectedCurrency} />
+    </section>
+    <ManagementCharts figures={figures} currency={selectedCurrency} inventory={inventory} />
+    {page > 0 && <details className={styles.card}><summary>Ver pedidos online</summary>{orders.map(order => <p key={`${order.storeId}:${order.id}`}>Pedido #{order.numero} · {new Date(order.criadoEm).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo" })} · {order.status === "cancelled" ? "Cancelado" : paymentLabel(order.pagamento)} · {order.valorProdutos !== null && order.moeda ? formatMoney(order.valorProdutos, order.moeda) : "Valor indisponível"}</p>)}</details>}
+    <section className={styles.card} aria-label="Precisa de atenção"><h2>Precisa de atenção</h2>
+      {!currentExternal && !inventory && <p>As pendências ainda não estão disponíveis.</p>}
+      {attentionCount !== undefined ? attentionCount > 0 ? <div className={styles.attention}><strong>{countLabel(attentionCount, "venda precisa de atenção", "vendas precisam de atenção")}</strong><span>Vendas externas · todas as moedas · {periodLabel(period)}</span><Link href="/sales">Conferir vendas</Link></div> : <p>Nenhuma pendência nas vendas externas deste período.</p>
+        : currentExternal && (currentExternal.estoque.pendentes > 0 || currentExternal.totais.some(row => row.pagamentosPendentes > 0)) ? <div className={styles.attention}><p>Há vendas externas a conferir.</p><Link href="/sales">Conferir vendas</Link></div> : null}
+      {inventory && inventory.produtosBaixos > 0 && <div className={styles.attention}><strong>{countLabel(inventory.produtosBaixos, "produto com estoque baixo", "produtos com estoque baixo")}</strong>
+        {lowProducts.slice(0, 3).map(row => <Link key={row.produtoId} href={`/productDetails/${row.produtoId}?varianteId=${row.varianteId}`}>{row.nome}</Link>)}
+        <Link href="/inventory">Ver estoque</Link>{inventory.negativas > 0 && <span>{countLabel(inventory.negativas, "variante com saldo negativo", "variantes com saldo negativo")}. Confira o estoque.</span>}</div>}
+      {inventory && inventory.produtosBaixos === 0 && <p>Nenhum produto com estoque baixo.</p>}
+    </section>
+  </div>;
 }

@@ -5,6 +5,8 @@ export async function carregarDashboard(signal?: AbortSignal, fetcher: typeof fe
   const [variants, history] = await Promise.all([carregarCatalogo(signal, fetcher), carregarHistorico(1, signal, fetcher)]);
   return {
     produtos: new Set(variants.map(item => item.produtoId)).size,
+    produtosBaixos: new Set(variants.filter(item => item.quantidade !== null && item.quantidade <= limit).map(item => item.produtoId)).size,
+    catalogo: variants,
     variantes: variants.length,
     semEstoque: variants.filter(item => item.quantidade !== null && item.quantidade <= 0).length,
     emRuptura: variants.filter(item => item.quantidade !== null && item.quantidade <= limit).length,

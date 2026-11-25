@@ -34,6 +34,7 @@ function fixture() {
     if (text.startsWith("UPDATE")) return { rows: [], rowCount: state.rowCount };
     if (text.startsWith("SELECT $1::date")) return { rows: [{ inicio: "2026-11-01T03:00:00Z", fim: "2026-12-01T03:00:00Z" }] };
     if (text.startsWith("WITH comercial")) return { rows: [{ totais: [{ moeda: "BRL", canal: "WhatsApp", vendas: "1", pagamentosPendentes: "1", valorVendido: "50.00", recebimentos: "5.00", estornos: "10.00", recebidoLiquido: "-5.00" }], diario: [{ dia: "2026-11-01", moeda: "BRL", valor: "50.00" }] }] };
+    if (text.startsWith("WITH vendas_periodo")) return { rows: [{ porMoeda: [{ moeda: "BRL", valorAReceber: "45.00", unidades: "3" }], produtosMaisVendidos: [{ moeda: "BRL", produtoId: "100", nome: "Luva", unidades: "3" }] }] };
     if (text.includes("AS pendentes")) return { rows: [{ pendentes: "2", incertas: "1" }] };
     return { rows: [] };
   }
@@ -132,6 +133,25 @@ it("indicadores mensais usam fuso no PostgreSQL, datas distintas e não duplicam
   assert.match(query.text, /situacao = 'confirmada'/); assert.ok(!query.text.includes("itens_venda_externa"));
   assert.match(query.text, /ELSE -m.valor/);
   await assert.rejects(f.repository.period("2026-13"), { status: 400 });
+});
+it("gestão lê somente vendas confirmadas da loja e período, sem multiplicar saldo pelos itens", async () => {
+  const f = fixture(); const result = await f.repository.summary(auth, "2026-11");
+  assert.equal(result.gestao?.porMoeda[0].valorAReceber, "45.00");
+  assert.equal(result.gestao?.produtosMaisVendidos[0].unidades, "3");
+  const query = f.queries.find(row => row.text.startsWith("WITH vendas_periodo"))!;
+  assert.deepEqual(query.values, [10, "2026-11-01T03:00:00.000Z", "2026-12-01T03:00:00.000Z"]);
+  assert.match(query.text, /WHERE loja_id=\$1 AND situacao='confirmada' AND vendida_em >= \$2 AND vendida_em < \$3/);
+  assert.match(query.text, /sum\(total-valor_recebido\+valor_estornado\)/);
+  const balance = query.text.slice(query.text.indexOf("saldos AS ("), query.text.indexOf("produtos AS ("));
+  assert.doesNotMatch(balance, /JOIN|itens_venda/);
+  assert.match(query.text, /GROUP BY v.moeda,i.produto_id/); assert.match(query.text, /sum\(i.quantidade\)::text/);
+  assert.match(query.text, /PARTITION BY v.moeda/); assert.match(query.text, /posicao <= 5/);
+  assert.doesNotMatch(query.text, /preco_unitario|baixas_estoque|UPDATE |INSERT |DELETE /);
+  const attention = f.queries.find(row => row.text.includes('AS "vendasComPendencia"'))!;
+  assert.match(attention.text, /count\(DISTINCT v.id\)/); assert.match(attention.text, /v.loja_id=\$1/);
+  f.state.access = false; f.queries.length = 0;
+  await assert.rejects(f.repository.summary(auth, "2026-11"), { status: 403 });
+  assert.ok(!f.queries.some(row => /WITH comercial|WITH vendas_periodo/.test(row.text)));
 });
 it("série comercial diária usa vendas confirmadas, loja e mesma leitura dos totais mensais, sem somar recebimentos", async () => {
   const f = fixture(); const result = await f.repository.summary(auth, "2026-11");

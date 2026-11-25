@@ -4,6 +4,9 @@ export type ExternalSale = { id: number; usuarioId: number; requisicaoId: string
   estoque: string; exigeConferencia: boolean; itens: ExternalItem[]; movimentos: { id: number; tipo: string; valor: string; formaPagamento: string; ocorridoEm: string }[] };
 export type OnlineOrder = { id: string; storeId: string; numero: string; origem: "nuvemshop"; canal: "loja_online"; criadoEm: string; status: string; pagamento: string; moeda: string | null; valorProdutos: string | null; totalPedido: string | null };
 export type Summary = { periodo: string; fuso: string; inicio: string; fim: string; totais: { moeda: string; canal: string; vendas: number; valorVendido: string; recebimentos: string; estornos: string; recebidoLiquido: string; pagamentosPendentes: number }[]; estoque: { pendentes: number; incertas: number }; diario?: { dia: string; moeda: string; valor: string }[] };
+export type ManagementSummary = { porMoeda: { moeda: string; valorAReceber: string; unidades: string }[];
+  produtosMaisVendidos: { moeda: string; produtoId: string; nome: string; unidades: string }[]; vendasComPendencia?: number };
+export type DashboardSummary = Summary & { gestao?: ManagementSummary };
 export type OrdersPage = { periodo: string; inicio: string; fim: string; items: OnlineOrder[]; page: number; hasMore: boolean; recebidoNoMes: null; avisoRecebimentos: string };
 export type SaleDraft = { canal: string; formaPagamento: string; moeda: string; vendidaEm: string; descontoVenda: string;
   pagamento: { situacao: string; valorRecebido: string; recebidoEm?: string };
@@ -54,12 +57,25 @@ export async function listSales(page = 1, signal?: AbortSignal) {
 export async function fetchSummary(period: string, signal?: AbortSignal) {
   const { response, data } = await commercialFetch(`external/summary?periodo=${period}`, { signal });
   if (!response.ok) throw failed(data, response.status);
-  const result = data as Summary;
-  if (!result || result.periodo !== period || !Array.isArray(result.totais) || !result.estoque || !result.totais.every(row => decimal(row.valorVendido) && decimal(row.recebidoLiquido))) throw new Error("Resumo comercial inválido.");
+  const result = data as DashboardSummary;
+  const count = (value: unknown) => Number.isSafeInteger(value) && Number(value) >= 0;
+  if (!result || result.periodo !== period || !Array.isArray(result.totais) || !result.estoque
+    || !result.totais.every(row => row && typeof row.moeda === "string" && /^[A-Z]{3}$/.test(row.moeda) && typeof row.canal === "string"
+      && count(row.vendas) && count(row.pagamentosPendentes) && [row.valorVendido, row.recebimentos, row.estornos, row.recebidoLiquido].every(decimal)
+      && ![row.valorVendido, row.recebimentos, row.estornos].some(value => value.startsWith("-")))) throw new Error("Resumo comercial inválido.");
   if (result.diario !== undefined && (!Array.isArray(result.diario) || !result.diario.every(row => row && typeof row.dia === "string"
     && /^\d{4}-\d{2}-\d{2}$/.test(row.dia) && row.dia.startsWith(period + "-") && Number.isFinite(Date.parse(row.dia + "T12:00:00Z"))
     && new Date(row.dia + "T12:00:00Z").toISOString().slice(0, 10) === row.dia && typeof row.moeda === "string" && /^[A-Z]{3}$/.test(row.moeda)
     && decimal(row.valor) && !row.valor.startsWith("-")))) throw new Error("Série diária externa inválida.");
+  if (result.gestao !== undefined) {
+    const value = result.gestao;
+    const currency = (value: unknown) => typeof value === "string" && /^[A-Z]{3}$/.test(value);
+    const units = (value: unknown) => typeof value === "string" && /^(0|[1-9]\d*)$/.test(value);
+    if (!value || !Array.isArray(value.porMoeda) || !Array.isArray(value.produtosMaisVendidos)
+      || !value.porMoeda.every(row => row && currency(row.moeda) && decimal(row.valorAReceber) && !row.valorAReceber.startsWith("-") && units(row.unidades))
+      || !value.produtosMaisVendidos.every(row => row && currency(row.moeda) && typeof row.produtoId === "string" && /^[1-9]\d*$/.test(row.produtoId) && typeof row.nome === "string" && row.nome.trim() && units(row.unidades))
+      || value.vendasComPendencia !== undefined && (!Number.isSafeInteger(value.vendasComPendencia) || value.vendasComPendencia < 0)) throw new Error("Indicadores indisponíveis.");
+  }
   return result;
 }
 export async function fetchOrders(period: string, page = 1, signal?: AbortSignal) {

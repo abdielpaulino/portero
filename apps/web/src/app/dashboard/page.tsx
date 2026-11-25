@@ -9,6 +9,7 @@ import { statusLabel } from "../history/data";
 import CommercialDashboard from "./CommercialDashboard";
 import { carregarSessao } from "../auth/session";
 import { usePreferences } from "../settings/usePreferences";
+import { userMessage } from "../components/presentation";
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null);
@@ -49,42 +50,33 @@ export default function DashboardPage() {
     return () => window.clearInterval(timer);
   }, [preferences, loading]);
   return <div className={styles.container} aria-busy={loading}>
-    {preferencesError && <p role="alert">{preferencesError}</p>}
+    {preferencesError && <p role="alert">O alerta de estoque pode estar desatualizado. <Link href="/settings">Conferir configurações</Link></p>}
     <div className={styles.header}>
-      <div><h1 className={styles.title}>Fluxo do estoque</h1><p className={styles.subtitle}>Inventário e baixas da loja</p></div>
+      <div><h1 className={styles.title}>Minha loja</h1></div>
       <button className={styles.refreshButton} type="button" disabled={loading} onClick={atualizar}>Atualizar</button>
     </div>
     {loading && <p className={styles.notice} role="status">Carregando indicadores...</p>}
-    {error && <p className={styles.notice} role="alert">{error} <Link href="/login">Entrar novamente</Link></p>}
+    {error && /sessão|acesso/i.test(error) && <p role="alert">{userMessage(error)} <Link href="/login">Entrar novamente</Link></p>}
+    <CommercialDashboard revision={revision} inventory={data} stockLoading={loading} stockError={error} limit={preferences?.limiteRuptura ?? 0} />
     {data && <>
-      {preferences && <p className={styles.notice}>Variantes em ruptura até {preferences.limiteRuptura}: {data.emRuptura}</p>}
-      <p className={styles.notice}>Contagem de todas as páginas consultadas do catálogo. <Link href="/inventory">Ver inventário</Link></p>
-      <div className={styles.statsGrid}>
-        <div className={styles.statCard}><span className={styles.statLabel}>Produtos carregados</span><span className={styles.statValue}>{data.produtos}</span></div>
-        <div className={styles.statCard}><span className={styles.statLabel}>Variantes carregadas</span><span className={styles.statValue}>{data.variantes}</span></div>
-      </div>
       <div className={styles.card}>
-        <span className={styles.cardLabel}>Situação das variantes carregadas</span>
-        <div className={styles.alertRow}><span className={styles.alertValue}>{data.semEstoque}</span><span>sem estoque disponível</span></div>
-        <p className={styles.cardHint}>{data.semControle} sem controle de estoque — contadas separadamente.</p>
-        {data.negativas > 0 && <p className={styles.notice} role="alert">{data.negativas} variante(s) com estoque negativo — solicitar conferência.</p>}
-      </div>
-      <div className={styles.card}>
-        <div className={styles.cardHeaderRow}><span className={styles.cardLabel}>Baixas recentes</span><Link href="/history">Ver histórico</Link></div>
+        <div className={styles.cardHeaderRow}><h2 className={styles.cardLabel}>Baixas de estoque</h2><Link href="/history">Ver histórico</Link></div>
+        {data.recentes.some(item => !["sincronizada", "rejeitada", "conferida_parcial"].includes(item.status)) && <p role="alert">Há baixas recentes a conferir. <Link href="/history">Conferir baixas</Link></p>}
+        <details><summary>Últimas baixas</summary>
         <div className={styles.orderList}>
           {!data.recentes.length && <p>Nenhuma baixa registrada.</p>}
           {data.recentes.map(item => <div key={item.id} className={styles.orderRow}>
             <div className={styles.orderInfo}>
               <span className={styles.orderNumber}>Baixa #{item.id} · {item.quantidade} un.</span>
-              <span className={styles.orderMeta}>Variante {item.varianteId} · {item.sku || "Sem SKU"}</span>
+              <span className={styles.orderMeta}>{item.sku || "Sem SKU"}</span>
               <small className={styles.orderMeta}>{new Date(item.criadoEm).toLocaleString("pt-BR")}</small>
             </div>
             <span className={styles.statusBadge} data-status={item.status}>{statusLabel(item.status)}</span>
           </div>)}
         </div>
+        </details>
       </div>
     </>}
-    <CommercialDashboard revision={revision} />
     <TabBar />
   </div>;
 }

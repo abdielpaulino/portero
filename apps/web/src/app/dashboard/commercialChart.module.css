@@ -7,13 +7,7 @@
 .onlineLabel { color: #2563eb; }
 .axis { fill: none; stroke: var(--border-color); stroke-width: 1; }
 .external { fill: none; stroke: var(--purple); stroke-width: 2; }
-.online { fill: none; stroke: #2563eb; stroke-width: 2; }
+.online { fill: none; stroke: #2563eb; stroke-width: 2; stroke-dasharray: 6 4; }
 .tick { fill: currentColor; font-size: 11px; }
-.tableWrap { overflow-x: auto; max-width: 100%; margin-top: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; }
-.tableWrap table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
-.tableWrap th, .tableWrap td { padding: 0.65rem; text-align: left; border-bottom: 1px solid var(--border-color); }
-.tableWrap th { background: var(--light-bg); font-weight: 600; }
-.tableWrap tr:last-child td { border-bottom: 0; }
-.container summary { padding: 0.65rem 0; cursor: pointer; color: var(--purple); font-size: 0.85rem; }
 .figure svg { margin-top: 0.5rem; }
 .legend span::before { content: ""; display: inline-block; width: 1rem; height: 3px; background: currentColor; margin-right: 0.35rem; vertical-align: middle; }

@@ -297,41 +297,25 @@ it("movimento financeiro valida zero e corrige solicitação recusada sem criar 
     assert.equal(attempts[0].body.valor, "1250.99"); assert.equal(attempts[1].body.valor, "1.00"); assert.equal(attempts[0].key, attempts[1].key); assert.equal(browser.localStorage.getItem(key), null);
   } finally { await view.close(); }
 });
-it("dashboard distingue pedidos pendentes de recebido e identifica abrangência parcial e moedas", async () => {
+it("dashboard distingue origens, moedas e recebido líquido, mantendo alertas fora dos detalhes", async () => {
   globalThis.fetch = async url => {
-    if (url === "/api/auth/session") return Response.json(session);
-    if (String(url).includes("external/summary")) {
-      const period = new URL(`http://localhost${url}`).searchParams.get("periodo");
-      return Response.json({ periodo: period, fuso: "America/Sao_Paulo", inicio: "2026-11-01T03:00:00Z", fim: "2026-12-01T03:00:00Z",
-        totais: [{ canal: "WhatsApp", moeda: "BRL", vendas: 1, valorVendido: "10.00", recebimentos: "5.00", estornos: "0.00", recebidoLiquido: "5.00", pagamentosPendentes: 1 }], estoque: { pendentes: 1, incertas: 0 } });
-    }
-    const period = new URL(`http://localhost${url}`).searchParams.get("periodo");
-    return Response.json({ periodo: period, inicio: "2026-11-01T03:00:00Z", fim: "2026-12-01T03:00:00Z", page: 1, hasMore: true, recebidoNoMes: null,
-      items: [{ id: "1", storeId: "123", numero: "7", origem: "nuvemshop", canal: "loja_online", criadoEm: "2026-11-01T12:00:00Z", status: "open", pagamento: "pending", moeda: "USD", valorProdutos: "20.00", totalPedido: "25.00" }] });
-  };
-  const view = await mount(<Dashboard />);
+    if (url === "/api/auth/session") return Response.json(session); const period = new URL(`http://localhost${url}`).searchParams.get("periodo");
+    if (String(url).includes("external/summary")) return Response.json({ periodo: period, fuso: "America/Sao_Paulo", totais: [{ canal: "WhatsApp", moeda: "BRL", vendas: 1, valorVendido: "10.00", recebimentos: "5.00", estornos: "1.00", recebidoLiquido: "4.00", pagamentosPendentes: 1 }], estoque: { pendentes: 1, incertas: 1 }, diario: [{ dia: `${period}-01`, moeda: "BRL", valor: "10.00" }] });
+    return Response.json({ periodo: period, page: 1, hasMore: true, items: [{ id: "1", storeId: "123", numero: "7", origem: "nuvemshop", canal: "loja_online", criadoEm: `${period}-01T12:00:00Z`, status: "open", pagamento: "pending", moeda: "USD", valorProdutos: "20.00", totalPedido: "25.00" }] });
+  }; const view = await mount(<Dashboard />);
   try {
-    assert.match(view.container.textContent!, /valor dos pedidos: USD 20,00/);
-    assert.match(view.container.textContent!, /Recebido líquido no mês: R\$ 5,00/);
-    assert.match(view.container.textContent!, /Totais parciais/); assert.match(view.container.textContent!, /Recebido online no mês indisponível/);
+    assert.match(view.container.textContent!, /Recebido nas vendas externasR\$ 4,00/); assert.match(view.container.textContent!, /A receber nas vendas externasIndisponível/);
+    assert.doesNotMatch(view.container.textContent!, /item\(ns\)|pedido\(s\)|read_orders|partially_paid/);
+    const partial = [...view.container.querySelectorAll('[role="alert"]')].find(el => el.textContent!.includes("Dados incompletos"))!; assert.ok(partial); assert.equal(partial.closest("details"), null);
+    const chart = view.container.querySelector('[aria-label="Valor comercial diário"]')!; assert.equal(chart.closest("details"), null); assert.equal(chart.querySelectorAll("svg").length, 1);
+    assert.match(chart.textContent!, /Não representa valor recebido/); assert.doesNotMatch(chart.textContent!, /25,00/);
+    await view.fill("Moeda", "USD"); assert.match(view.container.querySelector('[aria-label="Principais indicadores"]')!.textContent!, /Valor vendidoUSD 20,00/);
   } finally { await view.close(); }
 });
-it("gráfico diário separa origens e moedas e sinaliza páginas online ainda não consultadas", async () => {
-  globalThis.fetch = async url => {
-    if (url === "/api/auth/session") return Response.json(session);
-    const period = new URL(`http://localhost${url}`).searchParams.get("periodo")!;
-    if (String(url).includes("external/summary")) return Response.json({ periodo: period, fuso: "America/Sao_Paulo", totais: [], estoque: { pendentes: 0, incertas: 0 }, diario: [{ dia: `${period}-01`, moeda: "BRL", valor: "10.00" }] });
-    return Response.json({ periodo: period, page: 1, hasMore: true, items: [{ id: "1", storeId: "123", numero: "1", origem: "nuvemshop", canal: "loja_online", criadoEm: `${period}-01T03:00:00Z`, status: "open", pagamento: "pending", moeda: "USD", valorProdutos: "20.00", totalPedido: "99.00" }] });
-  };
-  const view = await mount(<Dashboard />);
-  try {
-    const chart = view.container.querySelector('[aria-label="Valor comercial diário"]')!; assert.ok(chart);
-    assert.match(chart.textContent!, /Não representa valor recebido/); assert.match(chart.textContent!, /valores parciais/);
-    assert.match(chart.textContent!, /Valor comercial diário · BRL/); assert.match(chart.textContent!, /Valor comercial diário · USD/);
-    assert.equal(chart.querySelectorAll("svg").length, 2); assert.match(chart.textContent!, /R\$ 10,00/); assert.match(chart.textContent!, /USD 20,00/); assert.doesNotMatch(chart.textContent!, /99,00/);
-  } finally { await view.close(); }
+it("dashboard traduz falta de permissão sem exibir scopes ou detalhes técnicos", async () => {
+  globalThis.fetch = async url => url === "/api/auth/session" ? Response.json({ ...session, vendasExternasHabilitadas: false }) : Response.json({ message: "Configure read_orders na API (HTTP 403)." }, { status: 403 });
+  const view = await mount(<Dashboard />); try { assert.match(view.container.textContent!, /Pedidos online ainda não disponíveis/); assert.doesNotMatch(view.container.textContent!, /read_orders|HTTP|\bAPI\b/); } finally { await view.close(); }
 });
-
 it("flags desativadas não consultam tabelas comerciais nem impedem navegação", async () => {
   const calls: string[] = []; globalThis.fetch = async url => { calls.push(String(url)); return Response.json({ usuarioId: 1, loja: session.loja }); };
   const view = await mount(<Sales />); try { assert.deepEqual(calls, ["/api/auth/session"]); assert.match(view.container.textContent!, /ainda não ativadas/); assert.equal(view.container.querySelector("form"), null); await view.click("Conferir disponibilidade"); assert.equal(calls.length, 2); } finally { await view.close(); }

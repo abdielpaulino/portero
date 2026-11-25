@@ -7,6 +7,11 @@ import { cents, hash, money, type FinancialEvent, type FinancialInput, type Prep
 type Queryable = Pick<PoolClient, "query">;
 export type Period = { periodo: string; fuso: string; inicio: string; fim: string };
 export type ExternalSummary = Period & { totais: { moeda: string; canal: string; vendas: number; valorVendido: string; recebimentos: string; estornos: string; recebidoLiquido: string; pagamentosPendentes: number }[]; estoque: { pendentes: number; incertas: number }; diario?: { dia: string; moeda: string; valor: string }[] };
+export type ManagementSummary = {
+  porMoeda: { moeda: string; valorAReceber: string; unidades: string }[];
+  produtosMaisVendidos: { moeda: string; produtoId: string; nome: string; unidades: string }[];
+  vendasComPendencia?: number;
+};
 export interface SalesRepository {
   store(auth: AuthContext): Promise<StoreCredentials>;
   period(month: string): Promise<Period>;
@@ -14,7 +19,7 @@ export interface SalesRepository {
   create(auth: AuthContext, key: string, fingerprint: string, input: SaleInput, items: PreparedItem[]): Promise<Sale>;
   get(auth: AuthContext, id: number): Promise<Sale>;
   list(auth: AuthContext, page: number): Promise<{ items: Sale[]; hasMore: boolean }>;
-  summary(auth: AuthContext, month: string): Promise<ExternalSummary>;
+  summary(auth: AuthContext, month: string): Promise<ExternalSummary & { gestao?: ManagementSummary }>;
   withSale<T>(auth: AuthContext, id: number, work: (sale: Sale) => Promise<T>): Promise<T>;
   prepareItem(auth: AuthContext, saleId: number, itemId: number): Promise<number>;
   financial(auth: AuthContext, id: number, key: string, input: FinancialInput): Promise<Sale>;
@@ -206,10 +211,31 @@ export function createSalesRepository(database: Pool, control: Pool, storeId: st
         SELECT COALESCE((SELECT jsonb_agg(r ORDER BY r.moeda,r.canal) FROM resumo r),'[]'::jsonb) AS totais,
           COALESCE((SELECT jsonb_agg(d ORDER BY d.dia,d.moeda) FROM diario d),'[]'::jsonb) AS diario`, [auth.lojaId, period.inicio, period.fim]);
       const stock = await database.query(`SELECT count(*) FILTER (WHERE b.id IS NULL OR b.status_sincronizacao <> 'sincronizada') AS pendentes,
+        count(DISTINCT v.id) FILTER (WHERE b.id IS NULL OR b.status_sincronizacao <> 'sincronizada' OR v.valor_recebido-v.valor_estornado < v.total) AS "vendasComPendencia",
         count(*) FILTER (WHERE b.status_sincronizacao NOT IN ('registrada','sincronizada','rejeitada','conferida_parcial')) AS incertas
         FROM itens_venda_externa i JOIN vendas_externas v ON v.id=i.venda_id LEFT JOIN baixas_estoque b ON b.id=i.baixa_id
         WHERE v.loja_id=$1 AND v.situacao='confirmada' AND v.vendida_em >= $2 AND v.vendida_em < $3`, [auth.lojaId, period.inicio, period.fim]);
+      const management = await database.query<Pick<ManagementSummary, "porMoeda" | "produtosMaisVendidos">>(`WITH vendas_periodo AS (
+        SELECT id,moeda,total,valor_recebido,valor_estornado,vendida_em FROM vendas_externas
+        WHERE loja_id=$1 AND situacao='confirmada' AND vendida_em >= $2 AND vendida_em < $3
+      ), unidades AS (
+        SELECT v.moeda,sum(i.quantidade)::text AS unidades
+        FROM vendas_periodo v JOIN itens_venda_externa i ON i.venda_id=v.id GROUP BY v.moeda
+      ), saldos AS (
+        SELECT moeda,sum(total-valor_recebido+valor_estornado)::numeric(30,2)::text AS "valorAReceber"
+        FROM vendas_periodo GROUP BY moeda
+      ), produtos AS (
+        SELECT v.moeda,i.produto_id::text AS "produtoId",
+          (array_agg(i.nome_produto ORDER BY v.vendida_em DESC,i.id DESC))[1] AS nome,
+          sum(i.quantidade)::text AS unidades,
+          row_number() OVER (PARTITION BY v.moeda ORDER BY sum(i.quantidade) DESC,i.produto_id) AS posicao
+        FROM vendas_periodo v JOIN itens_venda_externa i ON i.venda_id=v.id GROUP BY v.moeda,i.produto_id
+      ) SELECT COALESCE((SELECT jsonb_agg(jsonb_build_object('moeda',s.moeda,'valorAReceber',s."valorAReceber",'unidades',COALESCE(u.unidades,'0')) ORDER BY s.moeda)
+          FROM saldos s LEFT JOIN unidades u ON u.moeda=s.moeda),'[]'::jsonb) AS "porMoeda",
+        COALESCE((SELECT jsonb_agg(jsonb_build_object('moeda',p.moeda,'produtoId',p."produtoId",'nome',p.nome,'unidades',p.unidades) ORDER BY p.moeda,p.posicao)
+          FROM produtos p WHERE posicao <= 5),'[]'::jsonb) AS "produtosMaisVendidos"`, [auth.lojaId, period.inicio, period.fim]);
       return { ...period, totais: (result.rows[0]?.totais ?? []).map(row => ({ ...row, vendas: Number(row.vendas), pagamentosPendentes: Number(row.pagamentosPendentes) })),
+        ...(management.rows[0] ? { gestao: { ...management.rows[0], ...(stock.rows[0]?.vendasComPendencia !== undefined ? { vendasComPendencia: Number(stock.rows[0].vendasComPendencia) } : {}) } } : {}),
         diario: result.rows[0]?.diario ?? [], estoque: { pendentes: Number(stock.rows[0].pendentes), incertas: Number(stock.rows[0].incertas) } };
     },
   };
