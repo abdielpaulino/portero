@@ -19,6 +19,7 @@ it("exibe estados sem confirmação como pendência de conferência", () => {
   assert.match(statusLabel("incerta"), /conferir/);
   assert.match(statusLabel("em_processamento"), /conferir/);
   assert.match(statusLabel("estado_antigo"), /conferir/);
+  assert.doesNotMatch(statusLabel("estado_antigo"), /estado_antigo/);
   assert.equal(statusLabel("sincronizada"), "Confirmada");
 });
 

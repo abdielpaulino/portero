@@ -6,6 +6,7 @@ import TabBar from "../components/TabBar";
 import styles from "./settings.module.css";
 import { carregarSessao, encerrarSessao, type Session } from "../auth/session";
 import { loadPreferences, settingsRequest, type Preferences } from "./data";
+import { userMessage } from "../components/presentation";
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -49,7 +50,7 @@ export default function SettingsPage() {
     if (saving) return; setSaving(true); setError(""); setNotice("");
     try {
       const result = await settingsRequest("/monitor", { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
-      setNotice(`Monitoramento: ${result.abrangencia ?? "notificações desativadas"}. Envios confirmados pelo provedor: ${result.enviados}; incertos: ${result.incertos}.`);
+      setNotice(`Verificação: ${result.abrangencia ?? "notificações desativadas"}. Alertas enviados: ${result.enviados ?? 0}; sem confirmação: ${result.incertos ?? 0}.`);
       setPreferences(await loadPreferences());
     } catch (failure) { setError(failure instanceof Error ? failure.message : "Monitoramento não confirmado."); }
     finally { setSaving(false); }
@@ -76,13 +77,12 @@ export default function SettingsPage() {
     <div className={styles.container}>
       <div className={styles.header}>
         <h1 className={styles.title}>Configurações</h1>
-        <p className={styles.subtitle}>Preferências da aplicação</p>
       </div>
 
       <div className={`${styles.card} ${styles.account}`}>
         <div className={styles.avatar}>NS</div>
         <div>
-          <p className={styles.accountName}>Conta PORTERO{session ? ` #${session.usuarioId}` : ""}</p>
+          <p className={styles.accountName}>Minha conta</p>
           <p className={styles.accountSubtitle}>Loja: {session?.loja.nomeLoja ?? "Carregando..."}</p>
         </div>
       </div>
@@ -122,12 +122,12 @@ export default function SettingsPage() {
             </svg>
           </span>
           <div className={styles.itemText}>
-            <span className={styles.itemTitle}>Considerar ruptura</span>
-            <span className={styles.itemSubtitle}>Alertar ruptura para a quantidade</span>
+            <span className={styles.itemTitle}>Estoque baixo</span>
+            <span className={styles.itemSubtitle}>Avisar até esta quantidade</span>
           </div>
           <input
             type="number"
-            aria-label="Limite de ruptura"
+            aria-label="Avisar até esta quantidade"
             min={0}
             disabled={!preferences || saving}
             className={styles.numberInput}
@@ -147,7 +147,7 @@ export default function SettingsPage() {
             </svg>
           </span>
           <div className={styles.itemText}>
-            <span className={styles.itemTitle}>Sincronização automática</span>
+            <span className={styles.itemTitle}>Atualizar estoque na tela</span>
           </div>
           <button
             type="button"
@@ -155,7 +155,7 @@ export default function SettingsPage() {
             data-on={autoSync}
             onClick={() => setAutoSync((v) => !v)}
             aria-pressed={autoSync}
-            aria-label="Sincronização automática"
+            aria-label="Atualizar estoque na tela"
             disabled={!preferences || saving}
           >
             <span className={styles.switchThumb} />
@@ -163,18 +163,17 @@ export default function SettingsPage() {
         </div>
         <div className={styles.item}><label>Destinatário<input type="email" value={recipient} onChange={event => setRecipient(event.target.value)} disabled={!preferences || saving} /></label></div>
         <div className={styles.item}><label>Intervalo da tela, em segundos<input type="number" min={60} max={3600} value={interval} onChange={event => setInterval(event.target.value)} disabled={!preferences || saving} /></label></div>
-        <p className={styles.itemSubtitle}>A atualização automática consulta o estoque enquanto a tela estiver visível. Não cria vendas nem altera o saldo.</p>
-        <p className={styles.itemSubtitle}>Com a tela fechada, o monitoramento usa o agendamento diário da Vercel, sujeito ao plano e à validação do envio.</p>
+        <p className={styles.itemSubtitle}>O estoque é atualizado com a página aberta. Com a tela fechada, os alertas dependem do monitoramento diário.</p>
         {preferences && <><button type="button" disabled={saving} onClick={() => void save()}>Salvar preferências</button>
           <p>{preferences.envioConfigurado ? "Envio configurado. Confirme o recebimento no e-mail informado." : "Envio de notificações ainda não configurado ou habilitado."}</p>
-          <button type="button" disabled={saving || !preferences.envioConfigurado || !preferences.notificacoesAtivas} onClick={() => void monitor()}>Executar monitoramento</button>
-          <p>Último lote: {preferences.monitorEm ? new Date(preferences.monitorEm).toLocaleString("pt-BR") : "não executado"} · {preferences.monitorResultado ?? "sem resultado"}</p>
-          {preferences.alertas?.map(alert => <p key={alert.eventoId}>{alert.nome} · variante {alert.varianteId}: {alert.estado}. Evento {alert.eventoId}</p>)}
-          <p>Envios em processamento ou incertos exigem conferência no provedor; não são repetidos automaticamente.</p></>}
+          <button type="button" disabled={saving || !preferences.envioConfigurado || !preferences.notificacoesAtivas} onClick={() => void monitor()}>Verificar estoque agora</button>
+          <p>Última verificação: {preferences.monitorEm ? new Date(preferences.monitorEm).toLocaleString("pt-BR") : "não executada"} · {preferences.monitorResultado === "completo" ? "concluída" : preferences.monitorResultado === "parcial" ? "parcial: há produtos a conferir" : "sem resultado confirmado"}</p>
+          {preferences.alertas?.map(alert => <p key={alert.eventoId}>{alert.nome}: {({ pendente: "alerta pendente", em_envio: "envio em andamento", incerto: "envio sem confirmação", falhou: "falha no envio" } as Record<string, string>)[alert.estado] ?? "a conferir"}</p>)}
+          <p>Envios sem confirmação não são repetidos automaticamente. Solicite conferência.</p></>}
       </div>
 
-      {error && <p role="alert">{error}</p>}
-      {notice && <p role="status">{notice}</p>}
+      {error && <p role="alert">{userMessage(error, "Não foi possível salvar as preferências. Confira os dados e tente novamente.")}</p>}
+      {notice && <p role="status">{userMessage(notice)}</p>}
       <button type="button" className={styles.logout} onClick={handleLogout} disabled={leaving}>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
