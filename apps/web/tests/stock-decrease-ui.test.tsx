@@ -33,7 +33,7 @@ describe("interface em duas etapas",()=>{
   assert.deepEqual(calls.map(c=>c.url),["/api/inventory/stock-decreases","/api/inventory/stock-decreases/7","/api/inventory/stock-decreases/7/execute"]);
   assert.equal(browser.localStorage.getItem(key),null);
  });
- it("cancelar antes do envio não cria operação",async()=>{await click("Dar baixa");await click("Cancelar");assert.equal(calls.length,0);});
+ it("fechar antes do envio não cria operação",async()=>{await click("Dar baixa");await click("Fechar");assert.equal(calls.length,0);});
  it("perda da criação oferece histórico e bloqueia outra criação após fechar e remontar",async()=>{
   respond=async()=>{throw new Error("rede");};await click("Dar baixa");await submit();assert.equal(calls.length,1);assert.equal(successes,0);
   assert.ok(container.textContent?.includes("histórico"));assert.equal(JSON.parse(browser.localStorage.getItem(key)!).baixaId,null);
