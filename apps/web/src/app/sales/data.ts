@@ -12,7 +12,8 @@ export const decimal = (value: unknown): value is string => typeof value === "st
 export function formatMoney(value: string, currency: string) {
   if (!decimal(value)) return "Valor indisponível";
   const [integer, fraction] = value.split(".");
-  return `${currency} ${integer.replace(/\B(?=(\d{3})+(?!\d))/g, ".")},${fraction}`;
+  const amount = `${integer.replace(/\B(?=(\d{3})+(?!\d))/g, ".")},${fraction}`;
+  return currency === "BRL" ? amount.startsWith("-") ? `-R$ ${amount.slice(1)}` : `R$ ${amount}` : `${currency} ${amount}`;
 }
 export function monthNow() {
   const parts = new Intl.DateTimeFormat("en", { timeZone: "America/Sao_Paulo", month: "2-digit", year: "numeric" }).formatToParts(new Date());

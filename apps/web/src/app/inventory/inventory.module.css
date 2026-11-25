@@ -332,13 +332,50 @@
 .productCard .stockAction { margin-top: 0; }
 .productCard .stockAction input { max-width: 10rem; font-size: 1rem; }
 
+.moneyField { display: block; position: relative; min-width: 0; }
+.moneyPrefix { position: absolute; left: 0.75rem; top: 50%; transform: translateY(-50%); font-weight: 400; color: var(--light-font); pointer-events: none; }
+.salesForm .moneyField input { padding-left: 3.4rem; font-variant-numeric: tabular-nums; }
+.salesForm .fieldError { color: #9f1239; font-size: 0.8rem; font-weight: 400; line-height: 1.4; padding: 0; background: transparent; border-radius: 0; }
+.salesForm input[aria-invalid="true"], .salesForm select[aria-invalid="true"] { border-color: #be123c; }
+.saleTotals { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.6rem 1rem; align-items: baseline; font-size: 0.9rem; }
+.saleTotals output { text-align: right; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.totalValue { color: var(--purple); font-weight: 750; }
+.saleProduct { display: flex; align-items: center; gap: 0.85rem; min-width: 0; width: 100%; }
+.saleProduct .info { gap: 0.3rem; font-size: 0.85rem; }
+.saleProduct small { color: var(--light-font); overflow-wrap: anywhere; }
+.salePhoto { width: 72px; height: 84px; flex: 0 0 72px; display: grid; place-items: center; background: white; border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
+.salePhoto img { width: 100%; height: 100%; object-fit: contain; }
+.salePhoto span { font-size: 0.7rem; color: var(--light-font); }
+.steps { list-style: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.5rem; padding: 0; margin: 0 0 0.5rem; }
+.steps li { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem; font-size: 0.75rem; color: var(--light-font); }
+.steps li span { display: grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; background: #e2e8f0; }
+.steps li[aria-current="step"] { color: var(--purple); font-weight: 700; }
+.steps li[aria-current="step"] span { background: var(--purple); color: white; }
+.stepTitle { outline: none; }
+.wizardActions { display: flex; gap: 0.75rem; }
+.wizardActions > button { flex: 1; }
+.textButton { align-self: flex-start; padding: 0.5rem 0; border: 0; background: transparent; color: var(--light-font); text-decoration: underline; font-size: 0.85rem; cursor: pointer; }
+.salesForm summary, .saleDetails summary { cursor: pointer; color: var(--purple); font-size: 0.85rem; font-weight: 600; padding: 0.5rem 0; }
+.salesForm details > :not(summary), .saleDetails details > :not(summary) { margin-top: 0.75rem; }
+.salesForm .saleLine .formGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.saleDetails details.formSection { display: block; }
+.stockAttention { display: flex; flex-direction: column; gap: 0.75rem; }
+.stockAttention a { color: inherit; text-decoration: underline; }
+.resultOptions { min-width: 0; border: 0; padding: 0; display: flex; flex-direction: column; gap: 1rem; }
+.resultOptions legend { font-size: 0.85rem; font-weight: 600; padding: 0.5rem 0; }
+.salesForm .fieldError { overflow-wrap: anywhere; }
+.lineTotal { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem; }
+
 @media (max-width: 480px) {
-  .productHeading { flex-wrap: wrap; }
-  .productHeading .info { flex-basis: calc(100% - 65px); }
-  .productHeading .price { margin-left: 60px; }
-  .formGrid, .saleLine .formGrid { grid-template-columns: minmax(0, 1fr); }
+  .steps li { flex-direction: column; align-items: center; gap: 0.35rem; font-size: 0.7rem; text-align: center; }
+  .formGrid, .saleLine .formGrid, .salesForm .saleLine .formGrid { grid-template-columns: minmax(0, 1fr); }
   .formSection, .financialForm { padding: 1rem; }
   .card { gap: 0.65rem; flex-wrap: wrap; }
   .card .info { flex-basis: calc(100% - 65px); }
   .card .price { margin-left: 65px; }
+  .productHeading { flex-wrap: wrap; }
+  .productHeading .info { flex-basis: calc(100% - 65px); }
+  .productHeading .price { margin-left: 60px; }
+  .saleTotals { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .saleTotals output { text-align: right; }
 }
